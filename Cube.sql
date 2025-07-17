@@ -16,12 +16,12 @@ CREATE TABLE Customer (
     Last_Login DATETIME NULL,
     Last_Password_Change DATETIME NULL,
     Last_Profile_Update DATETIME NULL,
-    Cust_Status TINYINT(1) DEFAULT 1
+    Cust_Status BOOLEAN DEFAULT 1
 );
 
 CREATE TABLE Staff (
     Staff_ID INT AUTO_INCREMENT PRIMARY KEY,
-    Staff_Name VARCHAR(255) NOT NULL UNIQUE,
+    Staff_Name VARCHAR(255) NOT NULL,
     Staff_Email VARCHAR(255) NOT NULL UNIQUE,
     Staff_Phone VARCHAR(15) NOT NULL,
     Staff_Role VARCHAR(50) NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE Staff (
     Profile_Image LONGTEXT NULL,
     Reset_Token VARCHAR(255) NULL,
     Token_Expiry DATETIME NULL,
-    Staff_Status TINYINT(1) DEFAULT 1
+    Staff_Status BOOLEAN DEFAULT 1
 );
 
 CREATE TABLE Product (
@@ -38,13 +38,13 @@ CREATE TABLE Product (
     Prod_Name VARCHAR(255) NOT NULL,
     Prod_Price DECIMAL(10,2) NOT NULL,
     Prod_Describe VARCHAR(255) NOT NULL,
-    Prod_Status TINYINT(1) DEFAULT 1
+    Prod_Status BOOLEAN DEFAULT 1
 );
 
 CREATE TABLE Color (
     Color_ID INT AUTO_INCREMENT PRIMARY KEY,
     Color_Name VARCHAR(50) NOT NULL,
-    Color_Status TINYINT(1) DEFAULT 1
+    Color_Status BOOLEAN DEFAULT 1
 );
 
 CREATE TABLE Product_Color (
@@ -61,7 +61,7 @@ CREATE TABLE Category (
     Cate_Name VARCHAR(50) NOT NULL,
     Cate_Group VARCHAR(50) NOT NULL,
     Cate_Image VARCHAR(255) NOT NULL,
-    Cate_Status TINYINT(1) DEFAULT 1
+    Cate_Status BOOLEAN DEFAULT 1
 );
 
 CREATE TABLE Product_Category (
@@ -99,7 +99,7 @@ CREATE TABLE Orders (
     Order_ID INT AUTO_INCREMENT PRIMARY KEY,
     Order_Date DATETIME,
     Amount DECIMAL(10,2) NOT NULL,
-    Status ENUM('pending', 'completed','cancelled', 'failed') DEFAULT 'pending',
+    Status ENUM('Pending', 'Completed','Cancelled', 'Failed') DEFAULT 'Pending',
     Add_ID INT NOT NULL,
     Cust_ID INT NOT NULL,
     Pay_ID INT NOT NULL,
