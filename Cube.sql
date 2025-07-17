@@ -3,8 +3,8 @@ USE CUBE;
 
 CREATE TABLE Customer (
     Cust_ID INT AUTO_INCREMENT PRIMARY KEY,
-    Cust_Name VARCHAR(255) NOT NULL,
-    Cust_Username VARCHAR(50) NOT NULL UNIQUE,
+    Cust_First_Name VARCHAR(255) NOT NULL,
+    Cust_Last_Name VARCHAR(50) NOT NULL,
     Cust_Email VARCHAR(255) NOT NULL UNIQUE,
     Cust_Password VARCHAR(255) NOT NULL,
     Cust_Phone VARCHAR(15) NULL,
