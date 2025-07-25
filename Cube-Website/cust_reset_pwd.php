@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once 'dataconnection.php';
 
 $messages = [];
@@ -42,7 +43,8 @@ if (isset($_GET['email']) && !empty($_GET['email'])) {
                     mysqli_stmt_bind_param($update_stmt, "ss", $new_password, $email);
                     if (mysqli_stmt_execute($update_stmt)) {
                         mysqli_stmt_close($update_stmt);
-                        header("Location: cust_login.php");
+                        $_SESSION['password_reset'] = true; // Set flag after successful reset
+                        echo '<script>window.location.replace("cust_login.php");</script>';
                         exit();
                     } else {
                         $messages[] = "Failed to update password. Please try again.";
@@ -52,7 +54,7 @@ if (isset($_GET['email']) && !empty($_GET['email'])) {
         }
     }
 } else {
-    header("Location: cust_login.php");
+    echo '<script>window.location.replace("cust_login.php");</script>';
     exit();
 }
 
@@ -162,6 +164,21 @@ mysqli_close($conn);
     </div>
 
     <script>
+        // Intercept back button and redirect to cust_login.php only if coming from reset or forgot flow
+        window.onpopstate = function(event) {
+            if (event.state && (event.state.page === "reset_pwd" || event.state.page === "forgot_pwd")) {
+                window.location.replace("cust_login.php");
+            }
+        };
+
+        // Replace current history entry with reset_pwd state
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({ page: "reset_pwd" }, "Reset Password", window.location.pathname);
+        }
+
+        // Prevent page caching on unload
+        window.onunload = function() {};
+
         // Toggle Password Tips tab
         document.getElementById('passwordTipsLink').addEventListener('click', function(event) {
             event.preventDefault();

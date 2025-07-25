@@ -23,11 +23,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($cust_id) {
             if ($cust_status != 1) {
-                $messages[] = "This Email is blocked, please contact to the administration";
+                $messages[] = "This Email is blocked, please contact the administration";
             } elseif ($password === $stored_password) {
                 session_start();
                 $_SESSION['Cust_ID'] = $cust_id;
-                header("Location: cust_dashboard.php?login=success");
+                echo '<script>window.location.replace("cust_dashboard.php?login=success");</script>';
                 exit();
             } else {
                 $messages[] = "Invalid Email or Password";
@@ -40,6 +40,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     mysqli_close($conn);
 } elseif (isset($_GET['logout']) && $_GET['logout'] === 'success') {
     $messages[] = "Successfully Logout";
+    session_start();
+    session_unset();
+    session_destroy();
 } elseif (isset($_GET['login']) && $_GET['login'] === 'failed') {
     $messages[] = "Invalid Email or Password";
 }
@@ -86,6 +89,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <p><a href="cust_register.php">Create an account</a></p>
 
     <script>
+        // Intercept back button and redirect to cust_login.php only if coming from password reset flow
+        window.onpopstate = function(event) {
+            if (event.state && (event.state.page === "forgot_pwd" || event.state.page === "reset_pwd")) {
+                window.location.replace("cust_login.php");
+            }
+        };
+
+        // Replace current history entry with cust_login.php state
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({ page: "login" }, "Login", window.location.pathname);
+        }
+
+        // Prevent page caching on unload
+        window.onunload = function() {};
+
         // Disable spaces in password
         document.getElementById('password').addEventListener('input', function(event) {
             let value = event.target.value.replace(/ /g, ''); // Remove spaces

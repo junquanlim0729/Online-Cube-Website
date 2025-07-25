@@ -1,14 +1,21 @@
 <?php
+session_start();
 require_once 'dataconnection.php';
 
 $messages = [];
 $email = isset($_POST['email']) ? trim($_POST['email']) : '';
 $show_otp_form = false;
-$token_expiry = null;
+
+// Check if password was just reset, redirect if true
+if (isset($_SESSION['password_reset']) && $_SESSION['password_reset']) {
+    unset($_SESSION['password_reset']);
+    echo '<script>window.location.replace("cust_login.php");</script>';
+    exit();
+}
 
 date_default_timezone_set('Asia/Kuala_Lumpur');
 
-// Invalidate OTP if returning from login or check current status
+// Invalidate OTP if returning from login
 if (isset($_GET['clear_otp']) && !empty($email)) {
     $clear_sql = "UPDATE Customer SET Reset_Token = NULL, Token_Expiry = NULL WHERE Cust_Email = ?";
     $clear_stmt = mysqli_prepare($conn, $clear_sql);
@@ -16,19 +23,6 @@ if (isset($_GET['clear_otp']) && !empty($email)) {
         mysqli_stmt_bind_param($clear_stmt, "s", $email);
         mysqli_stmt_execute($clear_stmt);
         mysqli_stmt_close($clear_stmt);
-    }
-}
-
-// Fetch current token expiry to reflect trigger state
-if (!empty($email) && !$show_otp_form) {
-    $sql = "SELECT Token_Expiry FROM Customer WHERE Cust_Email = ? LIMIT 1";
-    $stmt = mysqli_prepare($conn, $sql);
-    if ($stmt !== false) {
-        mysqli_stmt_bind_param($stmt, "s", $email);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $token_expiry);
-        mysqli_stmt_fetch($stmt);
-        mysqli_stmt_close($stmt);
     }
 }
 
@@ -111,7 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_otp'])) {
                     mysqli_stmt_bind_param($clear_stmt, "s", $verified_email);
                     mysqli_stmt_execute($clear_stmt);
                     mysqli_stmt_close($clear_stmt);
-                    header("Location: cust_reset_pwd.php?email=" . urlencode($verified_email));
+                    echo '<script>window.location.replace("cust_reset_pwd.php?email=' . urlencode($verified_email) . '");</script>';
                     exit();
                 }
             } else {
@@ -121,16 +115,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_otp'])) {
             mysqli_stmt_close($stmt);
         }
     }
-}
-
-if ($show_otp_form) {
-    $sql = "SELECT Token_Expiry FROM Customer WHERE Cust_Email = ? LIMIT 1";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "s", $email);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $token_expiry);
-    mysqli_stmt_fetch($stmt);
-    mysqli_stmt_close($stmt);
 }
 
 mysqli_close($conn);
@@ -201,19 +185,13 @@ mysqli_close($conn);
         a:hover {
             text-decoration: underline;
         }
-        #timer {
-            text-align: center;
-            margin: 5px 0;
-            font-size: 0.9em;
-            color: red; /* Countdown in red */
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Forgot Password</h2>
         <?php if (!empty($messages)): ?>
-            <div class="message <?php echo strpos($messages[0], "OTP has been sent") !== false || strpos($messages[0], "A new OTP") !== false ? 'success' : 'error'; ?>">
+            <div class="message <?php echo strpos($messages[0], "OTP has been sent") !== false ? 'success' : 'error'; ?>">
                 <?php echo $messages[0]; ?>
             </div>
         <?php endif; ?>
@@ -226,8 +204,6 @@ mysqli_close($conn);
                 <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
                 <input type="text" name="otp" placeholder="Enter OTP" maxlength="6" required>
                 <button type="submit" name="submit_otp">Verify OTP</button>
-                <div id="timer">Time remaining: --:--</div>
-                <button type="button" id="requestAgainBtn" <?php echo $token_expiry && strtotime($token_expiry) > time() ? 'disabled' : ''; ?>>Request OTP again</button>
             <?php endif; ?>
         </form>
         
@@ -235,73 +211,20 @@ mysqli_close($conn);
     </div>
 
     <script>
-        let timerInterval;
+        // Intercept back button and redirect to cust_login.php only if coming from reset flow
+        window.onpopstate = function(event) {
+            if (event.state && (event.state.page === "reset_pwd" || event.state.page === "forgot_pwd")) {
+                window.location.replace("cust_login.php");
+            }
+        };
 
-        function startTimer(expiry) {
-            clearInterval(timerInterval); // Clear any existing timer
-            const expiryTime = new Date(expiry).getTime();
-            const timerElement = document.getElementById('timer');
-            const requestAgainBtn = document.getElementById('requestAgainBtn');
-
-            timerInterval = setInterval(() => {
-                const now = new Date().getTime();
-                const timeLeft = expiryTime - now;
-
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    timerElement.textContent = 'Time remaining: 00:00';
-                    requestAgainBtn.disabled = false;
-                } else {
-                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-                    timerElement.textContent = `Time remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                }
-            }, 1000);
+        // Replace current history entry with forgot_pwd state
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({ page: "forgot_pwd" }, "Forgot Password", window.location.pathname);
         }
 
-        document.getElementById('requestAgainBtn').addEventListener('click', function() {
-            const btn = this;
-            btn.disabled = true;
-            const email = document.querySelector('input[name="email"]').value;
-            const timerElement = document.getElementById('timer');
-            const messageDiv = document.querySelector('.message');
-
-            fetch('<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'request_otp_again=1&email=' + encodeURIComponent(email)
-            })
-            .then(response => response.text())
-            .then(data => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(data, 'text/html');
-                const message = doc.querySelector('.message');
-                if (message && message.textContent.includes('OTP has been sent')) {
-                    const newExpiry = doc.querySelector('meta[name="token-expiry"]');
-                    if (newExpiry) {
-                        timerElement.textContent = 'Time remaining: 01:00';
-                        startTimer(newExpiry.content);
-                        if (messageDiv) messageDiv.textContent = message.textContent;
-                    } else {
-                        btn.disabled = false;
-                    }
-                } else {
-                    btn.disabled = false;
-                    timerElement.textContent = 'Time remaining: 00:00';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                btn.disabled = false;
-            });
-        });
-
-        <?php if ($show_otp_form && $token_expiry): ?>
-            startTimer('<?php echo $token_expiry; ?>');
-            <meta name="token-expiry" content="<?php echo $token_expiry; ?>">
-        <?php endif; ?>
+        // Prevent page caching on unload
+        window.onunload = function() {};
     </script>
 </body>
 </html>
