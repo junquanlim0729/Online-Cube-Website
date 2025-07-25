@@ -34,9 +34,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($password) {
         $length = strlen($password);
         if ($length < 8 || $length > 20) {
-            $errors[] = "Please follow the password requirements";
+            $errors[] = "Please follow the password requirements.";
         } elseif (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password) || !preg_match('/[!@#$%^&*(),.?":{}|<>]/', $password)) {
-            $errors[] = "Please follow the password requirements";
+            $errors[] = "Please follow the password requirements.";
         }
     }
 
@@ -44,41 +44,48 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($phone) {
         $phone_digits = preg_replace('/[^0-9]/', '', $phone);
         $valid_prefixes = ['10', '11', '12', '13', '14', '16', '17', '18', '19'];
-        $prefix = $phone_digits.slice(0, 2);
+        $prefix = substr($phone_digits, 0, 2);
         $is011 = $prefix === '11';
-        $digit_count = $phone_digits.length;
+        $digit_count = strlen($phone_digits);
 
-        if ($phone_digits.length < 2 || !validPrefixes.includes(prefix) || ($is011 && $digit_count !== 10) || (!$is011 && $digit_count !== 9)) {
-            $phone_errors[] = "Incorrect phone number length";
-        } else if (is011 && $digit_count === 10) {
-            $phone = '+6011' + $phone_digits.slice(2);
-        } else if (!$is011 && $digit_count === 9) {
-            $phone = '+60' + $phone_digits;
+        if (strlen($phone_digits) < 2 || !in_array($prefix, $valid_prefixes) || ($is011 && $digit_count !== 10) || (!$is011 && $digit_count !== 9)) {
+            $phone_errors[] = "Incorrect phone number length.";
+        } elseif ($is011 && $digit_count === 10) {
+            $phone = '+6011' . substr($phone_digits, 2);
+        } elseif (!$is011 && $digit_count === 9) {
+            $phone = '+60' . $phone_digits;
         }
     }
 
     $check_email = "SELECT Cust_ID FROM Customer WHERE Cust_Email = ?";
     $stmt = mysqli_prepare($conn, $check_email);
-    mysqli_stmt_bind_param($stmt, "s", $email);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_store_result($stmt);
-    if (mysqli_stmt_num_rows($stmt) > 0) {
-        $email_errors[] = "Email is already registered.";
+    if ($stmt === false) {
+        $errors[] = "Database preparation failed: " . mysqli_error($conn);
+    } else {
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_store_result($stmt);
+        if (mysqli_stmt_num_rows($stmt) > 0) {
+            $email_errors[] = "Email is already registered.";
+        }
+        mysqli_stmt_close($stmt);
     }
-    mysqli_stmt_close($stmt);
 
     if (empty($errors) && empty($email_errors) && empty($phone_errors)) {
         $insert_query = "INSERT INTO Customer (Cust_First_Name, Cust_Last_Name, Cust_Email, Cust_Password, Cust_Phone, Created_At, Cust_Status) VALUES (?, ?, ?, ?, ?, NOW(), 1)";
         $stmt = mysqli_prepare($conn, $insert_query);
-        mysqli_stmt_bind_param($stmt, "sssss", $first_name, $last_name, $email, $password, $phone); // Store original password
-        
-        if (mysqli_stmt_execute($stmt)) {
-            header("Location: cust_login.php?register=success");
-            exit();
+        if ($stmt === false) {
+            $errors[] = "Database preparation failed: " . mysqli_error($conn);
         } else {
-            $errors[] = "Registration failed. Please try again.";
+            mysqli_stmt_bind_param($stmt, "sssss", $first_name, $last_name, $email, $password, $phone); // Store original password
+            if (mysqli_stmt_execute($stmt)) {
+                header("Location: cust_login.php?register=success");
+                exit();
+            } else {
+                $errors[] = "Registration failed: " . mysqli_error($conn);
+            }
+            mysqli_stmt_close($stmt);
         }
-        mysqli_stmt_close($stmt);
     }
 
     mysqli_close($conn);
@@ -137,7 +144,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <label for="phone">Phone No.</label><br>
         <div>
             <span style="border: 1px solid #ccc; padding: 5px; margin-right: 5px;">+60</span>
-            <input type="tel" id="phone" name="phone" pattern="[0-9- ]*" inputmode="numeric" value="<?php echo isset($phone) && !empty($phone) ? htmlspecialchars($phone.slice(3)) : ''; ?>" required>
+            <input type="tel" id="phone" name="phone" pattern="[0-9- ]*" inputmode="numeric" value="<?php echo isset($phone) && !empty($phone) ? htmlspecialchars(substr($phone, 3)) : ''; ?>" required>
         </div>
         <?php
         if (!empty($phone_errors)) {
@@ -233,13 +240,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             let emailErrors = [];
             let phoneErrors = [];
             const firstName = document.getElementById('first_name').value.trim();
-            const last_name = document.getElementById('last_name').value.trim();
+            const lastName = document.getElementById('last_name').value.trim();
             const email = document.getElementById('email').value.trim();
             const phone = document.getElementById('phone').value.trim();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
 
-            if (!firstName || !last_name || !email || !phone || !password || !confirmPassword) {
+            if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) {
                 errors.push('All required fields must be filled.');
                 if (!phone) {
                     phoneErrors.push('Phone number is required.');
@@ -261,7 +268,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 const digitCount = phoneDigits.length;
 
                 if (phoneDigits.length < 2 || !validPrefixes.includes(prefix) || (is011 && digitCount !== 10) || (!is011 && digitCount !== 9)) {
-                    phoneErrors.push('Incorrect phone number length');
+                    phoneErrors.push('Incorrect phone number length.');
                 } else if (is011 && digitCount === 10) {
                     phone = '+6011' + phoneDigits.slice(2);
                 } else if (!is011 && digitCount === 9) {
@@ -272,9 +279,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if (password) {
                 const length = password.length;
                 if (length < 8 || length > 20) {
-                    errors.push('Please follow the password requirements');
+                    errors.push('Please follow the password requirements.');
                 } else if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-                    errors.push('Please follow the password requirements');
+                    errors.push('Please follow the password requirements.');
                 }
             }
 

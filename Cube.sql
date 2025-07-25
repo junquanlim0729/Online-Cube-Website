@@ -19,6 +19,18 @@ CREATE TABLE Customer (
     Cust_Status BOOLEAN DEFAULT 1
 );
 
+DELIMITER //
+CREATE TRIGGER trg_invalidate_token
+BEFORE UPDATE ON Customer
+FOR EACH ROW
+BEGIN
+    IF NEW.Token_Expiry IS NOT NULL AND NEW.Token_Expiry < NOW() THEN
+        SET NEW.Reset_Token = NULL;
+        SET NEW.Token_Expiry = NULL;
+    END IF;
+END//
+DELIMITER ;
+
 CREATE TABLE Address (
     Add_ID INT AUTO_INCREMENT PRIMARY KEY,
     Cust_ID INT NOT NULL,

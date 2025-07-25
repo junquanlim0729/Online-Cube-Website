@@ -2,70 +2,90 @@
 require_once 'dataconnection.php';
 
 $messages = [];
-$email = '';
+$email = isset($_POST['email']) ? trim($_POST['email']) : '';
 $show_otp_form = false;
+$token_expiry = null;
 
-// Handle email submission
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_email'])) {
-    $email = trim($_POST['email']);
-    
-    // Validate email format
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $messages[] = "Invalid email format.";
-    } else {
-        // Check if email exists
-        $sql = "SELECT Cust_ID FROM Customer WHERE Cust_Email = ?";
-        $stmt = mysqli_prepare($conn, $sql);
+date_default_timezone_set('Asia/Kuala_Lumpur');
+
+// Invalidate OTP if returning from login or check current status
+if (isset($_GET['clear_otp']) && !empty($email)) {
+    $clear_sql = "UPDATE Customer SET Reset_Token = NULL, Token_Expiry = NULL WHERE Cust_Email = ?";
+    $clear_stmt = mysqli_prepare($conn, $clear_sql);
+    if ($clear_stmt !== false) {
+        mysqli_stmt_bind_param($clear_stmt, "s", $email);
+        mysqli_stmt_execute($clear_stmt);
+        mysqli_stmt_close($clear_stmt);
+    }
+}
+
+// Fetch current token expiry to reflect trigger state
+if (!empty($email) && !$show_otp_form) {
+    $sql = "SELECT Token_Expiry FROM Customer WHERE Cust_Email = ? LIMIT 1";
+    $stmt = mysqli_prepare($conn, $sql);
+    if ($stmt !== false) {
         mysqli_stmt_bind_param($stmt, "s", $email);
         mysqli_stmt_execute($stmt);
-        mysqli_stmt_store_result($stmt);
-        
-        if (mysqli_stmt_num_rows($stmt) > 0) {
-            // Generate 6-digit OTP
-            $otp = sprintf("%06d", mt_rand(0, 999999));
-            
-            // Update customer with OTP and expiry (2 minutes)
-            $expiry = date('Y-m-d H:i:s', time() + 120);
-            $update_sql = "UPDATE Customer SET Reset_Token = ?, Token_Expiry = ? WHERE Cust_Email = ?";
-            $update_stmt = mysqli_prepare($conn, $update_sql);
-            mysqli_stmt_bind_param($update_stmt, "sss", $otp, $expiry, $email);
-            if (mysqli_stmt_execute($update_stmt)) {
-                // Send OTP via email using PHP mail()
-                $to = $email;
-                $subject = 'CubePro Hub - Password Reset OTP';
-                $message = "Dear Customer,\n\n";
-                $message .= "You have requested to reset your password for your CubePro Hub account.\n";
-                $message .= "Your OTP for password reset is: $otp\n";
-                $message .= "This code is valid for 2 minutes.\n\n";
-                $message .= "If you did not request this, please ignore this email.\n\n";
-                $message .= "Best regards,\nCubePro Hub Team";
-                $headers = "From: CubePro Hub <cubeprohub@gmail.com>\r\n";
-                $headers .= "Reply-To: cubeprohub@gmail.com\r\n";
-                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-
-                if (mail($to, $subject, $message, $headers)) {
-                    $messages[] = "OTP has been sent to your email account.";
-                    $show_otp_form = true;
-                } else {
-                    $error_info = error_get_last();
-                    $error_message = $error_info ? $error_info['message'] : 'Unknown error';
-                    $messages[] = "Failed to send OTP via email. For testing, your OTP is: $otp (This code is valid for 2 minutes.)";
-                    $show_otp_form = true;
-                    file_put_contents('email_errors.log', date('Y-m-d H:i:s') . " - Failed to send OTP email to $email: $error_message\n", FILE_APPEND);
-                }
-            } else {
-                $messages[] = "Failed to generate OTP. Try again.";
-            }
-            mysqli_stmt_close($update_stmt);
-        } else {
-            $messages[] = "No account found with this email.";
-        }
+        mysqli_stmt_bind_result($stmt, $token_expiry);
+        mysqli_stmt_fetch($stmt);
         mysqli_stmt_close($stmt);
     }
 }
 
-// Handle OTP verification
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_email'])) {
+    $email = trim($_POST['email']);
+    
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $messages[] = "Invalid email format.";
+    } else {
+        $sql = "SELECT Cust_ID FROM Customer WHERE Cust_Email = ?";
+        $stmt = mysqli_prepare($conn, $sql);
+        if ($stmt === false) {
+            $messages[] = "Database error: " . mysqli_error($conn);
+        } else {
+            mysqli_stmt_bind_param($stmt, "s", $email);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_store_result($stmt);
+            
+            if (mysqli_stmt_num_rows($stmt) > 0) {
+                $otp = sprintf("%06d", mt_rand(0, 999999));
+                $token_expiry = date('Y-m-d H:i:s', time() + 60);
+                $update_sql = "UPDATE Customer SET Reset_Token = ?, Token_Expiry = ? WHERE Cust_Email = ?";
+                $update_stmt = mysqli_prepare($conn, $update_sql);
+                if ($update_stmt === false) {
+                    $messages[] = "Database error: " . mysqli_error($conn);
+                } else {
+                    mysqli_stmt_bind_param($update_stmt, "sss", $otp, $token_expiry, $email);
+                    if (mysqli_stmt_execute($update_stmt)) {
+                        $to = $email;
+                        $subject = 'CubePro Hub - Password Reset OTP';
+                        $message = "Dear Customer,\n\nYour OTP is: $otp (Expires: $token_expiry)\n";
+                        $message .= "This code is valid for 1 minute.\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nCubePro Hub Team";
+                        $headers = "From: CubePro Hub <cubeprohub@gmail.com>\r\n";
+                        $headers .= "Reply-To: cubeprohub@gmail.com\r\n";
+                        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+                        if (mail($to, $subject, $message, $headers)) {
+                            $messages[] = "OTP has been sent to your email account.";
+                            $show_otp_form = true;
+                        } else {
+                            $messages[] = "Failed to send OTP via email. For testing, your OTP is: $otp (Expires: $token_expiry)";
+                        }
+                    } else {
+                        $messages[] = "Failed to generate OTP: " . mysqli_error($conn);
+                    }
+                    mysqli_stmt_close($update_stmt);
+                }
+            } else {
+                $messages[] = "No account found with this email.";
+            }
+            mysqli_stmt_close($stmt);
+        }
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_otp'])) {
+    $email = trim($_POST['email']);
     $entered_otp = trim($_POST['otp']);
     if (!ctype_digit($entered_otp) || strlen($entered_otp) !== 6) {
         $messages[] = "OTP must be a 6-digit number.";
@@ -73,78 +93,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_otp'])) {
     } else {
         $sql = "SELECT Cust_Email FROM Customer WHERE Cust_Email = ? AND Reset_Token = ? AND Token_Expiry > NOW()";
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "ss", $email, $entered_otp);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_store_result($stmt);
-        
-        if (mysqli_stmt_num_rows($stmt) > 0) {
-            mysqli_stmt_bind_result($stmt, $verified_email);
-            mysqli_stmt_fetch($stmt);
-            $clear_sql = "UPDATE Customer SET Reset_Token = NULL, Token_Expiry = NULL WHERE Cust_Email = ?";
-            $clear_stmt = mysqli_prepare($conn, $clear_sql);
-            mysqli_stmt_bind_param($clear_stmt, "s", $verified_email);
-            mysqli_stmt_execute($clear_stmt);
-            mysqli_stmt_close($clear_stmt);
-            header("Location: cust_reset_pwd.php?email=" . urlencode($verified_email));
-            exit();
+        if ($stmt === false) {
+            $messages[] = "Database error: " . mysqli_error($conn);
         } else {
-            $messages[] = "Invalid or expired OTP.";
-            $show_otp_form = true;
+            mysqli_stmt_bind_param($stmt, "ss", $email, $entered_otp);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_store_result($stmt);
+            
+            if (mysqli_stmt_num_rows($stmt) > 0) {
+                mysqli_stmt_bind_result($stmt, $verified_email);
+                mysqli_stmt_fetch($stmt);
+                $clear_sql = "UPDATE Customer SET Reset_Token = NULL, Token_Expiry = NULL WHERE Cust_Email = ?";
+                $clear_stmt = mysqli_prepare($conn, $clear_sql);
+                if ($clear_stmt === false) {
+                    $messages[] = "Database error: " . mysqli_error($conn);
+                } else {
+                    mysqli_stmt_bind_param($clear_stmt, "s", $verified_email);
+                    mysqli_stmt_execute($clear_stmt);
+                    mysqli_stmt_close($clear_stmt);
+                    header("Location: cust_reset_pwd.php?email=" . urlencode($verified_email));
+                    exit();
+                }
+            } else {
+                $messages[] = "Invalid or expired OTP.";
+                $show_otp_form = true;
+            }
+            mysqli_stmt_close($stmt);
         }
-        mysqli_stmt_close($stmt);
     }
 }
 
-// Handle "Request OTP again" from verify OTP page
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['request_otp_again'])) {
-    $email = trim($_POST['email']);
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $messages[] = "Invalid email format.";
-    } else {
-        $sql = "SELECT Cust_ID FROM Customer WHERE Cust_Email = ?";
-        $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "s", $email);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_store_result($stmt);
-        
-        if (mysqli_stmt_num_rows($stmt) > 0) {
-            $otp = sprintf("%06d", mt_rand(0, 999999));
-            $expiry = date('Y-m-d H:i:s', time() + 120);
-            $update_sql = "UPDATE Customer SET Reset_Token = ?, Token_Expiry = ? WHERE Cust_Email = ?";
-            $update_stmt = mysqli_prepare($conn, $update_sql);
-            mysqli_stmt_bind_param($update_stmt, "sss", $otp, $expiry, $email);
-            if (mysqli_stmt_execute($update_stmt)) {
-                $to = $email;
-                $subject = 'CubePro Hub - Password Reset OTP';
-                $message = "Dear Customer,\n\n";
-                $message .= "You have requested to reset your password for your CubePro Hub account.\n";
-                $message .= "Your new OTP for password reset is: $otp\n";
-                $message .= "This code is valid for 2 minutes.\n\n";
-                $message .= "If you did not request this, please ignore this email.\n\n";
-                $message .= "Best regards,\nCubePro Hub Team";
-                $headers = "From: CubePro Hub <cubeprohub@gmail.com>\r\n";
-                $headers .= "Reply-To: cubeprohub@gmail.com\r\n";
-                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-
-                if (mail($to, $subject, $message, $headers)) {
-                    $messages[] = "A new OTP has been sent to your email account.";
-                    $show_otp_form = true;
-                } else {
-                    $error_info = error_get_last();
-                    $error_message = $error_info ? $error_info['message'] : 'Unknown error';
-                    $messages[] = "Failed to send OTP via email. For testing, your OTP is: $otp (This code is valid for 2 minutes.)";
-                    $show_otp_form = true;
-                    file_put_contents('email_errors.log', date('Y-m-d H:i:s') . " - Failed to send OTP email to $email: $error_message\n", FILE_APPEND);
-                }
-            } else {
-                $messages[] = "Failed to generate OTP. Try again.";
-            }
-            mysqli_stmt_close($update_stmt);
-        } else {
-            $messages[] = "No account found with this email.";
-        }
-        mysqli_stmt_close($stmt);
-    }
+if ($show_otp_form) {
+    $sql = "SELECT Token_Expiry FROM Customer WHERE Cust_Email = ? LIMIT 1";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "s", $email);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $token_expiry);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
 }
 
 mysqli_close($conn);
@@ -201,6 +187,10 @@ mysqli_close($conn);
         button:hover {
             background: #0056b3;
         }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
         a {
             display: block;
             text-align: center;
@@ -210,6 +200,12 @@ mysqli_close($conn);
         }
         a:hover {
             text-decoration: underline;
+        }
+        #timer {
+            text-align: center;
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: red; /* Countdown in red */
         }
     </style>
 </head>
@@ -224,28 +220,88 @@ mysqli_close($conn);
         
         <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
             <?php if (!$show_otp_form): ?>
-                <input type="email" name="email" placeholder="Enter your email address" required>
+                <input type="email" name="email" placeholder="Enter your email address" value="<?php echo htmlspecialchars($email); ?>" required>
                 <button type="submit" name="submit_email">Send OTP</button>
             <?php else: ?>
+                <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
                 <input type="text" name="otp" placeholder="Enter OTP" maxlength="6" required>
                 <button type="submit" name="submit_otp">Verify OTP</button>
-                <?php
-                $sql = "SELECT Token_Expiry FROM Customer WHERE Cust_Email = ? LIMIT 1";
-                $stmt = mysqli_prepare($conn, $sql);
-                mysqli_stmt_bind_param($stmt, "s", $email);
-                mysqli_stmt_execute($stmt);
-                mysqli_stmt_bind_result($stmt, $token_expiry);
-                mysqli_stmt_fetch($stmt);
-                if ($token_expiry && strtotime($token_expiry) < time()) {
-                    echo '<input type="hidden" name="email" value="' . htmlspecialchars($email) . '">';
-                    echo '<button type="submit" name="request_otp_again">Request OTP again</button>';
-                }
-                mysqli_stmt_close($stmt);
-                ?>
+                <div id="timer">Time remaining: --:--</div>
+                <button type="button" id="requestAgainBtn" <?php echo $token_expiry && strtotime($token_expiry) > time() ? 'disabled' : ''; ?>>Request OTP again</button>
             <?php endif; ?>
         </form>
         
-        <a href="cust_login.php">Back to Login</a>
+        <a href="cust_login.php?clear_otp=1&email=<?php echo urlencode($email); ?>" id="backToLogin">Back to Login</a>
     </div>
+
+    <script>
+        let timerInterval;
+
+        function startTimer(expiry) {
+            clearInterval(timerInterval); // Clear any existing timer
+            const expiryTime = new Date(expiry).getTime();
+            const timerElement = document.getElementById('timer');
+            const requestAgainBtn = document.getElementById('requestAgainBtn');
+
+            timerInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const timeLeft = expiryTime - now;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerElement.textContent = 'Time remaining: 00:00';
+                    requestAgainBtn.disabled = false;
+                } else {
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                    timerElement.textContent = `Time remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                }
+            }, 1000);
+        }
+
+        document.getElementById('requestAgainBtn').addEventListener('click', function() {
+            const btn = this;
+            btn.disabled = true;
+            const email = document.querySelector('input[name="email"]').value;
+            const timerElement = document.getElementById('timer');
+            const messageDiv = document.querySelector('.message');
+
+            fetch('<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'request_otp_again=1&email=' + encodeURIComponent(email)
+            })
+            .then(response => response.text())
+            .then(data => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data, 'text/html');
+                const message = doc.querySelector('.message');
+                if (message && message.textContent.includes('OTP has been sent')) {
+                    const newExpiry = doc.querySelector('meta[name="token-expiry"]');
+                    if (newExpiry) {
+                        timerElement.textContent = 'Time remaining: 01:00';
+                        startTimer(newExpiry.content);
+                        if (messageDiv) messageDiv.textContent = message.textContent;
+                    } else {
+                        btn.disabled = false;
+                    }
+                } else {
+                    btn.disabled = false;
+                    timerElement.textContent = 'Time remaining: 00:00';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.disabled = false;
+            });
+        });
+
+        <?php if ($show_otp_form && $token_expiry): ?>
+            startTimer('<?php echo $token_expiry; ?>');
+            <meta name="token-expiry" content="<?php echo $token_expiry; ?>">
+        <?php endif; ?>
+    </script>
 </body>
 </html>
