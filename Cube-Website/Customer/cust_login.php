@@ -27,7 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } elseif ($password === $stored_password) {
                 session_start();
                 $_SESSION['Cust_ID'] = $cust_id;
-                echo '<script>window.location.replace("cust_dashboard.php?login=success");</script>';
+                echo '<script>window.location.replace("index.php?login=success");</script>';
                 exit();
             } else {
                 $messages[] = "Invalid Email or Password";
