@@ -1,14 +1,12 @@
 <?php
 session_start();
-require_once 'dataconnection.php'; 
+require_once 'dataconnection.php'; // Local to Customer folder
 
 // Debug: Check session status
-if (!isset($_SESSION['Cust_ID'])) {
-    error_log("Session not set, redirecting to login at " . date('Y-m-d H:i:s')); // Log timestamped debug
-    header("Location: ../Customer/cust_login.php"); 
-    exit();
-} else {
+if (isset($_SESSION['Cust_ID'])) {
     error_log("Session set with Cust_ID: " . $_SESSION['Cust_ID'] . " at " . date('Y-m-d H:i:s')); // Log timestamped debug
+} else {
+    error_log("Session not set at " . date('Y-m-d H:i:s')); // Log timestamped debug
 }
 ?>
 
@@ -26,12 +24,13 @@ if (!isset($_SESSION['Cust_ID'])) {
     </style>
 </head>
 <body>
-    <h1>Welcome, Customer!</h1>
-    <p>This is your home page.</p>
+    <h1>Welcome to CubePro Hub</h1>
     <?php if (isset($_SESSION['Cust_ID'])): ?>
-        <p><a href="../Customer/cust_logout.php">Logout</a></p>
+        <p>This is your home page.</p>
+        <p><a href="cust_logout.php">Logout</a></p>
     <?php else: ?>
-        <p><a href="../Customer/cust_login.php">Login</a></p>
+        <p>Please log in to access your account.</p>
+        <p><a href="cust_login.php">Login</a></p>
     <?php endif; ?>
 </body>
 </html>
