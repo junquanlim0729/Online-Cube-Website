@@ -26,7 +26,9 @@ mysqli_stmt_close($stmt);
             <?php if ($staff['Staff_ID'] != $current_staff_id): ?>
                 <div class="admin-box" data-name="<?php echo htmlspecialchars(strtolower($staff['Staff_Name'] ?? $staff['Staff_Email'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($staff['Staff_Email'])); ?>" style="border: 1px solid #ccc; border-radius: 5px; padding: 15px; text-align: center; min-height: 300px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
-                        <img src="Admin/Images/Image_1.png" data-src="Admin/Images/staff_profile_<?php echo htmlspecialchars($staff['Staff_ID']); ?>.png" alt="Staff Profile" style="width: 120px; height: 120px; object-fit: cover; border-radius: 10px; margin-bottom: 15px;" onload="this.src=this.dataset.src" onerror="this.src='Admin/Images/Image_1.png'; this.onerror=null;">
+                        <div style="width: 150px; height: 150px; margin: 0 auto 15px; border: 2px solid #ccc; border-radius: 5px; overflow: hidden;">
+                            <img src="https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png" alt="Staff Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                             <span style="font-weight: bold; color: #333;">Name:</span>
                             <span style="color: #555; text-align: right; flex-grow: 1; padding-left: 10px;"><?php echo htmlspecialchars($staff['Staff_Name'] ?? $staff['Staff_Email']); ?></span>
@@ -42,11 +44,11 @@ mysqli_stmt_close($stmt);
                     </div>
                     <div>
                         <a href="?page=admin_edit_staff.php&id=<?php echo urlencode($staff['Staff_ID']); ?>" style="display: inline-block; padding: 5px 10px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; margin-right: 10px;">Edit</a>
-                        <form method="POST" action="" style="display: inline;" onsubmit="return confirm('Are you sure you want to <?php echo $staff['Staff_Status'] ? 'disable' : 'enable'; ?> this staff?');">
+                        <form method="POST" action="" style="display: inline;" onsubmit="return confirm('Are you sure you want to <?php echo $staff['Staff_Status'] ? 'deactivate' : 'activate'; ?> this staff?');">
                             <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff['Staff_ID']); ?>">
                             <input type="hidden" name="action" value="toggle_status">
                             <button type="submit" style="padding: 5px 10px; background: <?php echo $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                                <?php echo $staff['Staff_Status'] ? 'Disable' : 'Enable'; ?>
+                                <?php echo $staff['Staff_Status'] ? 'Deactivate' : 'Activate'; ?>
                             </button>
                         </form>
                     </div>
