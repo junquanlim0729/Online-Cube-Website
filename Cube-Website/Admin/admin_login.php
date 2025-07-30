@@ -1,4 +1,5 @@
 <?php
+session_start(); // Moved to top
 require_once 'dataconnection.php';
 
 $messages = [];
@@ -24,9 +25,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($staff_status != 1) {
                 $messages[] = "This Email is blocked, please contact the administration";
             } elseif ($password === $stored_password) {
-                session_start();
-                $_SESSION['Staff_ID'] = $staff_id; // Use Staff_ID instead of Cust_ID
-                $_SESSION['role'] = 'admin'; // Set role for session tracking
+                $_SESSION['Staff_ID'] = $staff_id;
+                $_SESSION['role'] = 'admin';
                 echo '<script>window.location.replace("admin_home.php?login=success");</script>';
                 exit();
             } else {
@@ -40,9 +40,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     mysqli_close($conn);
 } elseif (isset($_GET['logout']) && $_GET['logout'] === 'success') {
     $messages[] = "Successfully Logout";
-    session_start();
     session_unset();
     session_destroy();
+    header("Location: admin_login.php"); // Redirect after logout
+    exit();
 }
 ?>
 
