@@ -23,11 +23,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($staff_id) {
             if ($staff_status != 1) {
-                $messages[] = "This Email is blocked, please contact the administration";
+                $messages[] = "This account is disabled. Please contact the administration.";
             } elseif ($password === $stored_password) {
                 $_SESSION['Staff_ID'] = $staff_id;
                 $_SESSION['role'] = 'admin';
-                echo '<script>window.location.replace("admin_home.php?login=success");</script>';
+                header("Location: admin_home.php?login=success");
                 exit();
             } else {
                 $messages[] = "Invalid Email or Password";

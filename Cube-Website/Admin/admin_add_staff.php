@@ -5,13 +5,11 @@ require_once 'dataconnection.php';
 $messages = [];
 $staff_name = '';
 $staff_email = '';
-$staff_status = 1; // Default to Active
 $staff_role = 'Admin'; // Default to Admin
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
     $staff_name = trim($_POST['staff_name']);
     $staff_email = trim($_POST['staff_email']);
-    $staff_status = isset($_POST['staff_status']) ? 1 : 0;
     $staff_role = trim($_POST['staff_role']);
 
     if (empty($staff_name) || empty($staff_email)) {
@@ -27,9 +25,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
         if (mysqli_stmt_num_rows($check_stmt) > 0) {
             $messages[] = "Email already exists.";
         } else {
-            $insert_sql = "INSERT INTO Staff (Staff_Name, Staff_Email, Staff_Status, Staff_Role) VALUES (?, ?, ?, ?)";
+            $insert_sql = "INSERT INTO Staff (Staff_Name, Staff_Email, Staff_Role) VALUES (?, ?, ?)";
             $insert_stmt = mysqli_prepare($conn, $insert_sql);
-            mysqli_stmt_bind_param($insert_stmt, "ssis", $staff_name, $staff_email, $staff_status, $staff_role);
+            mysqli_stmt_bind_param($insert_stmt, "sss", $staff_name, $staff_email, $staff_role);
             if (mysqli_stmt_execute($insert_stmt)) {
                 mysqli_stmt_close($insert_stmt);
                 header("Location: ?page=admin_manage_staff.php&add=success");
@@ -52,37 +50,86 @@ mysqli_close($conn);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Add Staff</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .container { max-width: 400px; margin: 0 auto; }
-        h2 { text-align: center; }
-        .message { text-align: center; color: #ff0000; }
-        input, select { width: 100%; padding: 8px; margin: 5px 0; }
-        button { width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 3px; }
-        button:hover { background: #218838; }
+        .add-staff-container {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .add-staff-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .add-staff-container .message {
+            text-align: center;
+            color: #ff0000;
+            margin-bottom: 15px;
+        }
+        .add-staff-container .form-group {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .add-staff-container .form-group label {
+            flex: 1;
+            font-weight: bold;
+            color: #333;
+            margin-right: 10px;
+        }
+        .add-staff-container .form-group input,
+        .add-staff-container .form-group select {
+            flex: 2;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .add-staff-container button {
+            width: 100%;
+            padding: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .add-staff-container button:hover {
+            background: #218838;
+        }
+        .add-staff-container a {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: #007bff;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="add-staff-container">
         <h2>Add Staff</h2>
         <?php if (!empty($messages)): ?>
             <div class="message"><?php echo $messages[0]; ?></div>
         <?php endif; ?>
 
         <form method="POST" action="">
-            <label>Name</label>
-            <input type="text" name="staff_name" value="<?php echo htmlspecialchars($staff_name); ?>" required><br>
-            <label>Email</label>
-            <input type="email" name="staff_email" value="<?php echo htmlspecialchars($staff_email); ?>" required><br>
-            <label>Status</label>
-            <select name="staff_status">
-                <option value="1" <?php echo $staff_status ? 'selected' : ''; ?>>Active</option>
-                <option value="0" <?php echo !$staff_status ? 'selected' : ''; ?>>Blocked</option>
-            </select><br>
-            <label>Role</label>
-            <select name="staff_role">
-                <option value="Admin" <?php echo $staff_role === 'Admin' ? 'selected' : ''; ?>>Admin</option>
-                <option value="Super Admin" <?php echo $staff_role === 'Super Admin' ? 'selected' : ''; ?>>Super Admin</option>
-            </select><br>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="staff_name" value="<?php echo htmlspecialchars($staff_name); ?>" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="staff_email" value="<?php echo htmlspecialchars($staff_email); ?>" required>
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select name="staff_role">
+                    <option value="Admin" <?php echo $staff_role === 'Admin' ? 'selected' : ''; ?>>Admin</option>
+                    <option value="Super Admin" <?php echo $staff_role === 'Super Admin' ? 'selected' : ''; ?>>Super Admin</option>
+                </select>
+            </div>
             <button type="submit" name="submit_add">Add Staff</button>
         </form>
 

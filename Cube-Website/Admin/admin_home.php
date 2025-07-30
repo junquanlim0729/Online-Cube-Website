@@ -14,16 +14,53 @@ $page = in_array($page, $valid_pages) ? $page : 'admin_dashboard.php';
 
 <?php include 'admin_header.php'; ?>
 
-<div style="display: flex; min-height: 100vh;">
-    <!-- Left Sidebar -->
-    <div style="width: 200px; background-color: #f4f4f4; padding: 10px; min-height: 100vh;">
-        <?php include 'admin_menu.php'; ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admin Home</title>
+    <style>
+        /* Scoped styles for admin_home.php layout */
+        .admin-home-container {
+            display: flex;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .admin-sidebar {
+            width: 200px;
+            background-color: #f4f4f4;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .admin-content {
+            flex-grow: 1;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* Ensure included pages don't inherit unwanted styles */
+        .admin-content * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-home-container">
+        <!-- Left Sidebar -->
+        <div class="admin-sidebar">
+            <?php include 'admin_menu.php'; ?>
+        </div>
+
+        <!-- Main Content -->
+        <div class="admin-content">
+            <?php include $page; ?>
+        </div>
     </div>
 
-    <!-- Main Content -->
-    <div style="flex-grow: 1; padding: 20px;">
-        <?php include $page; ?>
-    </div>
-</div>
-
-<?php include 'admin_footer.php'; ?>
+    <?php include 'admin_footer.php'; ?>
+</body>
+</html>
