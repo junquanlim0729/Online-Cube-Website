@@ -47,7 +47,6 @@ CREATE TABLE Staff (
     Staff_ID INT AUTO_INCREMENT PRIMARY KEY,
     Staff_Name VARCHAR(255) NOT NULL,
     Staff_Email VARCHAR(255) NOT NULL UNIQUE,
-    Staff_Phone VARCHAR(15) NOT NULL,
     Staff_Role VARCHAR(50) NOT NULL,
     Staff_Password VARCHAR(255) NOT NULL,
     Join_Date DATE NOT NULL,

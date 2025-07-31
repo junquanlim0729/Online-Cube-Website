@@ -13,7 +13,7 @@ mysqli_stmt_close($stmt);
 
 ?>
 
-<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+<div style="margin-top: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
     <input type="text" id="searchInput" placeholder="Search by name or email" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; width: 200px;">
     <a href="?page=admin_add_staff.php" style="padding: 5px 10px; background: #28a745; color: white; text-decoration: none; border-radius: 3px;">Add Staff</a>
 </div>
@@ -77,6 +77,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        margin-top: 0px; /* Start from bottom of header (60px height) */
+        margin-bottom: 0px;
+        height: calc(100vh - 60px - 40px); /* Adjust for header and footer */
+        overflow-y: auto;
+    }
+</style>
 
 <?php
 // Handle status toggle
