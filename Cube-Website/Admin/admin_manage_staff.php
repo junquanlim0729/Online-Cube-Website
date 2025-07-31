@@ -42,7 +42,6 @@ mysqli_stmt_close($stmt);
                         </div>
                     </div>
                     <div>
-                        <a href="?page=admin_edit_staff.php&id=<?php echo urlencode($staff['Staff_ID']); ?>" style="display: inline-block; padding: 5px 10px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; margin-right: 10px;">Edit</a>
                         <form method="POST" action="" style="display: inline;" onsubmit="return confirm('Are you sure you want to <?php echo $staff['Staff_Status'] ? 'deactivate' : 'activate'; ?> this staff?');">
                             <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff['Staff_ID']); ?>">
                             <input type="hidden" name="action" value="toggle_status">

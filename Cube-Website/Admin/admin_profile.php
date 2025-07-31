@@ -2,7 +2,7 @@
 require_once 'dataconnection.php';
 
 $messages = [];
-$staff_id = isset($_SESSION['Staff_ID']) ? intval($_SESSION['Staff_ID']) : 0;
+$staff_id = isset($_GET['id']) ? intval($_GET['id']) : (isset($_SESSION['Staff_ID']) ? intval($_SESSION['Staff_ID']) : 0);
 $staff_data = null;
 
 // Load or initialize the JSON cache file
@@ -13,7 +13,7 @@ if (file_exists($cache_file)) {
     $cache_data = json_decode($json_content, true) ?: [];
 }
 
-// Fetch staff data for the logged-in user
+// Fetch or refresh staff data
 if ($staff_id > 0) {
     $sql = "SELECT Staff_ID, Staff_Name, Staff_Email, Staff_Role, Staff_Password, Profile_Image FROM Staff WHERE Staff_ID = ?";
     $stmt = mysqli_prepare($conn, $sql);
@@ -23,8 +23,8 @@ if ($staff_id > 0) {
     $staff_data = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt);
 
-    // Update cache with current database image if not set
-    if ($staff_data && !isset($cache_data[$staff_id])) {
+    // Update cache with current database image if not set or after modification
+    if ($staff_data && (!isset($cache_data[$staff_id]) || isset($_FILES['profile_image']) || isset($_POST['remove_image']))) {
         $cache_data[$staff_id] = $staff_data['Profile_Image'] ?: 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
         file_put_contents($cache_file, json_encode($cache_data));
     }
@@ -45,15 +45,21 @@ if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPL
         $success = mysqli_stmt_execute($update_stmt);
         mysqli_stmt_close($update_stmt);
 
-        header('Content-Type: application/json');
+        // Refresh staff data and cache after update
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $staff_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $staff_data = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
+
         if ($success) {
             $cache_data[$staff_id] = $upload_file;
             file_put_contents($cache_file, json_encode($cache_data));
-            echo json_encode(['status' => 'success', 'new_image_path' => $upload_file]);
-        } else {
-            unlink($upload_file); // Clean up on failure
-            echo json_encode(['status' => 'error', 'message' => 'Failed to update profile image in database.']);
         }
+
+        header('Content-Type: application/json');
+        echo json_encode(['status' => $success ? 'success' : 'error', 'new_image_path' => $success ? $upload_file : null, 'message' => $success ? '' : 'Failed to update profile image in database.']);
     } else {
         header('Content-Type: application/json');
         echo json_encode(['status' => 'error', 'message' => 'Invalid image file or upload failed.']);
@@ -72,66 +78,108 @@ if (isset($_POST['remove_image'])) {
     $success = mysqli_stmt_execute($update_stmt);
     mysqli_stmt_close($update_stmt);
 
-    header('Content-Type: application/json');
+    // Refresh staff data and cache after removal
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $staff_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $staff_data = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($stmt);
+
     if ($success) {
         $cache_data[$staff_id] = 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
         file_put_contents($cache_file, json_encode($cache_data));
-        echo json_encode(['status' => 'success', 'new_image_path' => null]);
-    } else {
-        echo json_encode(['status' => 'error', 'message' => 'Failed to remove profile image.']);
     }
+
+    header('Content-Type: application/json');
+    echo json_encode(['status' => $success ? 'success' : 'error', 'new_image_path' => $success ? null : $staff_data['Profile_Image'], 'message' => $success ? '' : 'Failed to remove profile image.']);
     exit();
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_edit'])) {
+    $name = trim($_POST['name']);
+    $role = trim($_POST['role']);
+    $password = !empty($_POST['password']) ? password_hash(trim($_POST['password']), PASSWORD_DEFAULT) : $staff_data['Staff_Password'];
+
+    if (empty($messages)) {
+        $update_sql = "UPDATE Staff SET Staff_Name = ?, Staff_Role = ?, Staff_Password = ? WHERE Staff_ID = ?";
+        $update_stmt = mysqli_prepare($conn, $update_sql);
+        mysqli_stmt_bind_param($update_stmt, "ssss", $name, $role, $password, $staff_id);
+        if (mysqli_stmt_execute($update_stmt)) {
+            // Refresh staff data after edit
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "i", $staff_id);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+            $staff_data = mysqli_fetch_assoc($result);
+            mysqli_stmt_close($stmt);
+
+            if ($staff_id == $_SESSION['Staff_ID']) {
+                header("Location: ?page=admin_profile.php");
+            } else {
+                header("Location: ?page=admin_manage_staff.php&update=success");
+            }
+            exit();
+        } else {
+            $messages[] = "Failed to update staff.";
+        }
+    }
 }
 
 mysqli_close($conn);
 ?>
 
-<div style="margin-top: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: stretch; max-height: calc(100vh - 60px - 40px); overflow-y: auto;">
-    <div style="flex: 1; text-align: center; min-width: 150px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; padding: 20px; box-sizing: border-box;">
-        <h2 style="margin-bottom: 30px;">My Profile</h2>
-        <?php if (!empty($messages)): ?>
-            <div style="color: #ff0000; margin-bottom: 30px; text-align: center;"><?php echo $messages[0]; ?></div>
-        <?php endif; ?>
-        <?php if ($staff_data): ?>
-            <form id="imageForm" enctype="multipart/form-data" style="display: flex; flex-direction: column; align-items: center; height: 100%; width: 100;">
-                <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
-                <div style="width: 100%; height: calc(70% - 40px); border: 2px solid #ccc; border-radius: 10px; overflow: hidden; display: flex; justify-content: center; align-items: center; margin-bottom: 30px;" id="imageContainer">
-                    <img id="profileImage" src="<?php echo isset($cache_data[$staff_id]) ? htmlspecialchars($cache_data[$staff_id]) : ($staff_data['Profile_Image'] ? htmlspecialchars($staff_data['Profile_Image']) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'); ?>" alt="Profile Image" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-                </div>
-                <input type="file" name="profile_image" accept="image/png, image/jpeg" id="imageUpload" style="display: block; margin: 0 auto 15px; width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
-                <button type="button" id="removeImageBtn" style="display: block; margin: 0 auto 30px; width: 90%; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Remove Image</button>
-            </form>
-        <?php else: ?>
-            <p style="text-align: center; color: #666; margin-top: 20px;">Profile not found.</p>
-        <?php endif; ?>
-    </div>
-    <div style="flex: 2; padding: 20px; box-sizing: border-box;">
-        <?php if ($staff_data): ?>
-            <form method="POST" action="" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 25px;">
-                <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
-                <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Email</label>
-                    <input type="text" value="<?php echo htmlspecialchars($staff_data['Staff_Email']); ?>" readonly style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; background-color: #f0f0f0; cursor: not-allowed; width: 100%;">
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Name</label>
-                    <input type="text" name="name" value="<?php echo htmlspecialchars($staff_data['Staff_Name']); ?>" required style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Role</label>
-                    <input type="text" value="<?php echo htmlspecialchars($staff_data['Staff_Role']); ?>" readonly style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; background-color: #f0f0f0; cursor: not-allowed; width: 100%;">
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Password</label>
-                    <input type="password" name="password" placeholder="Leave blank to keep current" style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Confirm Password</label>
-                    <input type="password" name="confirm_password" placeholder="Confirm new password" style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
-                </div>
-                <button type="submit" name="submit_edit" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Save Changes</button>
-            </form>
-        <?php endif; ?>
+<div style="margin-top: 20px; margin-bottom: 20px; max-height: calc(100vh - 60px - 40px); overflow-y: auto; position: relative;">
+    <h2 style="position: absolute; top: 0; left: 0; margin: 0; padding: 10px 20px; color: #333; background: #f4f4f4; border-bottom: 1px solid #ccc;">My Profile</h2>
+    <div style="display: flex; height: calc(100% - 40px); margin-top: 40px;">
+        <div style="flex: 1; text-align: center; min-width: 150px; padding: 20px; box-sizing: border-box; border-right: 2px solid #ccc;">
+            <?php if (!empty($messages)): ?>
+                <div style="color: #ff0000; margin-bottom: 30px; text-align: center;"><?php echo $messages[0]; ?></div>
+            <?php endif; ?>
+            <?php if ($staff_data): ?>
+                <form id="imageForm" enctype="multipart/form-data" style="display: flex; flex-direction: column; align-items: center; height: 100%; width: 100%;">
+                    <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
+                    <div style="width: 200px; height: 200px; border: 2px solid #ccc; border-radius: 5px; overflow: hidden; margin-bottom: 30px; display: flex; justify-content: center; align-items: center;" id="imageContainer">
+                        <img id="profileImage" src="<?php echo isset($cache_data[$staff_id]) ? htmlspecialchars($cache_data[$staff_id]) : ($staff_data['Profile_Image'] ? htmlspecialchars($staff_data['Profile_Image']) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'); ?>" alt="Profile Image" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                    </div>
+                    <input type="file" name="profile_image" accept="image/png, image/jpeg" id="imageUpload" style="display: block; margin: 0 auto 15px; width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
+                    <button type="button" id="removeImageBtn" style="display: block; margin: 0 auto 30px; width: 90%; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Remove Image</button>
+                </form>
+            <?php else: ?>
+                <p style="text-align: center; color: #666; margin-top: 20px;">Staff not found.</p>
+            <?php endif; ?>
+        </div>
+        <div style="flex: 2; padding: 20px; box-sizing: border-box;">
+            <?php if ($staff_data): ?>
+                <form method="POST" action="" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 25px;">
+                    <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
+                    <div style="display: flex; align-items: center;">
+                        <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Email</label>
+                        <input type="text" value="<?php echo htmlspecialchars($staff_data['Staff_Email']); ?>" readonly style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; background-color: #f0f0f0; cursor: not-allowed; width: 100%;">
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Name</label>
+                        <input type="text" name="name" value="<?php echo htmlspecialchars($staff_data['Staff_Name']); ?>" required style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Role</label>
+                        <select name="role" style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
+                            <option value="Admin" <?php echo $staff_data['Staff_Role'] === 'Admin' ? 'selected' : ''; ?>>Admin</option>
+                            <option value="Super Admin" <?php echo $staff_data['Staff_Role'] === 'Super Admin' ? 'selected' : ''; ?>>Super Admin</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Password</label>
+                        <input type="password" name="password" placeholder="Leave blank to keep current" style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Confirm Password</label>
+                        <input type="password" name="confirm_password" placeholder="Confirm new password" style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
+                    </div>
+                    <button type="submit" name="submit_edit" style="width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Save Changes</button>
+                </form>
+            <?php endif; ?>
+        </div>
     </div>
 </div>
 
@@ -144,16 +192,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const imageContainer = document.getElementById('imageContainer');
     const staffId = <?php echo $staff_id; ?>;
 
-    // Function to load current image from cache
+    // Function to load current image from cache or database
     function loadImageFromCache() {
         fetch('staff_image_cache.json')
             .then(response => response.json())
             .then(data => {
                 const currentPath = data[staffId] || '<?php echo $staff_data['Profile_Image'] ? htmlspecialchars($staff_data['Profile_Image']) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'; ?>';
-                profileImage.src = currentPath;
-                imageContainer.style.display = 'flex';
+                profileImage.src = currentPath + '?t=' + new Date().getTime(); // Prevent cache with timestamp
             })
-            .catch(error => console.error('Error loading cache:', error));
+            .catch(error => {
+                console.error('Error loading cache:', error);
+                profileImage.src = '<?php echo $staff_data['Profile_Image'] ? htmlspecialchars($staff_data['Profile_Image']) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'; ?>?t=' + new Date().getTime();
+            });
     }
 
     // Initial load
@@ -165,7 +215,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 profileImage.src = e.target.result; // Show preview immediately
-                imageContainer.style.display = 'flex';
             };
             reader.readAsDataURL(file);
 
@@ -177,12 +226,11 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'error') {
-                    alert(data.message);
-                    loadImageFromCache(); // Revert to cached or default image
+                if (data.status === 'success') {
+                    profileImage.src = data.new_image_path + '?t=' + new Date().getTime(); // Update with new path
                 } else {
-                    profileImage.src = data.new_image_path; // Update with server path
-                    imageContainer.style.display = 'flex';
+                    alert(data.message || 'Upload failed.');
+                    loadImageFromCache(); // Revert on error
                 }
             })
             .catch(error => {
@@ -194,8 +242,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     removeImageBtn.addEventListener('click', function() {
         if (confirm('Are you sure you want to remove the image?')) {
-            profileImage.src = 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'; // Show default immediately
-            imageContainer.style.display = 'flex';
             fetch(window.location.href, {
                 method: 'POST',
                 headers: {
@@ -205,12 +251,11 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'error') {
-                    alert(data.message);
-                    loadImageFromCache(); // Revert to cached or default image
+                if (data.status === 'success') {
+                    profileImage.src = data.new_image_path || 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png?t=' + new Date().getTime();
                 } else {
-                    profileImage.src = data.new_image_path || 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
-                    imageContainer.style.display = 'flex';
+                    alert(data.message || 'Removal failed.');
+                    loadImageFromCache(); // Revert on error
                 }
             })
             .catch(error => {
@@ -232,6 +277,6 @@ document.addEventListener('DOMContentLoaded', function() {
         box-sizing: border-box; /* Ensure padding/margins are included in height */
     }
     #imageContainer {
-        min-height: 100px; /* Ensure minimum height to prevent collapse */
+        min-height: 200px; /* Match the fixed container height */
     }
 </style>
