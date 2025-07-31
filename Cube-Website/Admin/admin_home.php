@@ -52,7 +52,6 @@ $page = in_array($page, $valid_pages) ? $page : 'admin_dashboard.php';
             margin-left: 250px; /* Offset for sidebar width */
             padding: 20px;
             box-sizing: border-box;
-            overflow-y: auto; /* Allow content to scroll */
             height: calc(100vh - 60px - 40px); /* Adjust for header and footer heights */
             margin-top: 60px; /* Space for header */
             margin-bottom: 40px; /* Space for footer */

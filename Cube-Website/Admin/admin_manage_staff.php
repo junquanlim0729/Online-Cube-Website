@@ -10,7 +10,6 @@ mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 $staff_list = mysqli_fetch_all($result, MYSQLI_ASSOC);
 mysqli_stmt_close($stmt);
-
 ?>
 
 <div style="margin-top: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
@@ -83,9 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
         margin: 0;
         padding: 0;
         margin-top: 0px; /* Start from bottom of header (60px height) */
-        margin-bottom: 0px;
-        height: calc(100vh - 60px - 40px); /* Adjust for header and footer */
-        overflow-y: auto;
+        margin-bottom: 0px; /* Remove bottom margin to extend to footer */
+        height: calc(100vh - 60px); /* Extend to top of footer, header (60px) subtracted */
+        box-sizing: border-box; /* Ensure padding/margins are included in height */
     }
 </style>
 
