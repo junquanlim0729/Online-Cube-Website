@@ -1,5 +1,6 @@
 <ul style="list-style-type: none; padding: 0; margin: 0;">
     <li><a href="?page=admin_dashboard.php" style="display: block; margin-top: 20px; padding: 10px; text-decoration: none; color: #333; transition: background-color 0.3s;">Dashboard</a></li>
+    <li><a href="?page=admin_profile.php" style="display: block; padding: 10px; text-decoration: none; color: #333; transition: background-color 0.3s;">My Profile</a></li>
     <li><a href="?page=admin_manage_staff.php" style="display: block; padding: 10px; text-decoration: none; color: #333; transition: background-color 0.3s;">Manage Staffs</a></li>
     <li><a href="?page=admin_cust_page.php" style="display: block; padding: 10px; text-decoration: none; color: #333; transition: background-color 0.3s;">Manage Customers</a></li>
     <li><a href="?page=admin_cate_page.php" style="display: block; padding: 10px; text-decoration: none; color: #333; transition: background-color 0.3s;">Manage Categories</a></li>

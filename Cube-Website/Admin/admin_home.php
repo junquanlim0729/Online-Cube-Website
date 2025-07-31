@@ -8,7 +8,7 @@ if (!isset($_SESSION['Staff_ID']) || $_SESSION['role'] !== 'admin') {
 }
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'admin_dashboard.php';
-$valid_pages = ['admin_dashboard.php', 'admin_manage_staff.php', 'admin_cust_page.php', 'admin_cate_page.php', 'admin_prod_page.php', 'admin_color_page.php', 'admin_report_page.php', 'admin_edit_staff.php', 'admin_add_staff.php'];
+$valid_pages = ['admin_dashboard.php', 'admin_manage_staff.php', 'admin_cust_page.php', 'admin_cate_page.php', 'admin_prod_page.php', 'admin_color_page.php', 'admin_report_page.php', 'admin_edit_staff.php', 'admin_add_staff.php', 'admin_profile.php'];
 $page = in_array($page, $valid_pages) ? $page : 'admin_dashboard.php';
 ?>
 
