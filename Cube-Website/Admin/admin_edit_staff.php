@@ -13,7 +13,7 @@ if (file_exists($cache_file)) {
     $cache_data = json_decode($json_content, true) ?: [];
 }
 
-// Fetch staff data
+// Fetch or refresh staff data
 if ($staff_id > 0) {
     $sql = "SELECT Staff_ID, Staff_Name, Staff_Email, Staff_Role, Staff_Password, Profile_Image FROM Staff WHERE Staff_ID = ?";
     $stmt = mysqli_prepare($conn, $sql);
@@ -23,8 +23,8 @@ if ($staff_id > 0) {
     $staff_data = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt);
 
-    // Update cache with current database image if not set
-    if ($staff_data && !isset($cache_data[$staff_id])) {
+    // Update cache with current database image if not set or after modification
+    if ($staff_data && (!isset($cache_data[$staff_id]) || isset($_FILES['profile_image']) || isset($_POST['remove_image']))) {
         $cache_data[$staff_id] = $staff_data['Profile_Image'] ?: 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
         file_put_contents($cache_file, json_encode($cache_data));
     }
@@ -44,6 +44,14 @@ if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPL
         mysqli_stmt_bind_param($update_stmt, "si", $upload_file, $staff_id);
         $success = mysqli_stmt_execute($update_stmt);
         mysqli_stmt_close($update_stmt);
+
+        // Refresh staff data after update
+        $stmt = mysqli_prepare($conn, $sql);
+        mysqli_stmt_bind_param($stmt, "i", $staff_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $staff_data = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
 
         header('Content-Type: application/json');
         if ($success) {
@@ -72,6 +80,14 @@ if (isset($_POST['remove_image'])) {
     $success = mysqli_stmt_execute($update_stmt);
     mysqli_stmt_close($update_stmt);
 
+    // Refresh staff data after removal
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $staff_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $staff_data = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($stmt);
+
     header('Content-Type: application/json');
     if ($success) {
         $cache_data[$staff_id] = 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
@@ -93,7 +109,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_edit'])) {
         $update_stmt = mysqli_prepare($conn, $update_sql);
         mysqli_stmt_bind_param($update_stmt, "ssss", $name, $role, $password, $staff_id);
         if (mysqli_stmt_execute($update_stmt)) {
-            mysqli_stmt_close($update_stmt);
+            // Refresh staff data after edit
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "i", $staff_id);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+            $staff_data = mysqli_fetch_assoc($result);
+            mysqli_stmt_close($stmt);
+
             header("Location: ?page=admin_manage_staff.php&update=success");
             exit();
         } else {
@@ -173,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 const currentPath = data[staffId] || '<?php echo $staff_data['Profile_Image'] ? htmlspecialchars($staff_data['Profile_Image']) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'; ?>';
-                profileImage.src = currentPath;
+                profileImage.src = currentPath + '?t=' + new Date().getTime(); // Prevent cache with timestamp
                 imageContainer.style.display = 'flex';
             })
             .catch(error => console.error('Error loading cache:', error));
@@ -204,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert(data.message);
                     loadImageFromCache(); // Revert to cached or default image
                 } else {
-                    profileImage.src = data.new_image_path; // Update with server path
+                    profileImage.src = data.new_image_path + '?t=' + new Date().getTime(); // Force reload with timestamp
                     imageContainer.style.display = 'flex';
                 }
             })
@@ -217,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     removeImageBtn.addEventListener('click', function() {
         if (confirm('Are you sure you want to remove the image?')) {
-            profileImage.src = 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'; // Show default immediately
+            profileImage.src = 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png?t=' + new Date().getTime(); // Show default immediately with timestamp
             imageContainer.style.display = 'flex';
             fetch(window.location.href, {
                 method: 'POST',
@@ -232,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert(data.message);
                     loadImageFromCache(); // Revert to cached or default image
                 } else {
-                    profileImage.src = data.new_image_path || 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
+                    profileImage.src = data.new_image_path || 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png?t=' + new Date().getTime();
                     imageContainer.style.display = 'flex';
                 }
             })
