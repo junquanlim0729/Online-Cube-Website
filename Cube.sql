@@ -8,7 +8,7 @@ CREATE TABLE Customer (
     Cust_Email VARCHAR(255) NOT NULL UNIQUE,
     Cust_Password VARCHAR(255) NOT NULL,
     Cust_Phone VARCHAR(15) NULL,
-    Profile_Image LONGTEXT NULL,
+    Profile_Image VARCHAR(255) NULL,
     Reset_Token VARCHAR(6) NULL,
     Token_Expiry DATETIME NULL,
     Created_At DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -50,7 +50,7 @@ CREATE TABLE Staff (
     Staff_Role VARCHAR(50) NOT NULL,
     Staff_Password VARCHAR(255) NOT NULL,
     Join_Date DATE NOT NULL,
-    Profile_Image LONGTEXT NULL,
+    Profile_Image VARCHAR(255) NULL,
     Reset_Token VARCHAR(255) NULL,
     Token_Expiry DATETIME NULL,
     Staff_Status BOOLEAN DEFAULT 1

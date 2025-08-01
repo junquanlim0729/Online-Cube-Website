@@ -1,0 +1,29 @@
+{
+    "default_image": "https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png",
+    "max_file_size": 2097152,
+    "allowed_types": ["image/png", "image/jpeg"],
+    "auto_refresh": false,
+    "refresh_interval": 0,
+    "upload_dir": "uploads/",
+    "image_dimensions": {
+        "max_width": 300,
+        "max_height": 300
+    },
+    "error_messages": {
+        "size_exceeded": "File size exceeds the 2MB limit.",
+        "invalid_type": "Only PNG and JPEG files are allowed.",
+        "upload_failed": "Failed to upload the image. Please try again."
+    },
+    "security": {
+        "max_attempts": 5,
+        "timeout": 300
+    },
+    "single_image_policy": true,
+    "cleanup_on_update": true,
+    "live_preview": true,
+    "update_callback": {
+        "enabled": true,
+        "method": "direct"
+    },
+    "version": "1.2.0"
+}
