@@ -26,35 +26,34 @@ $page = in_array($page, $valid_pages) ? $page : 'admin_dashboard.php';
             margin: 0;
             padding: 0;
             height: 100%;
-            overflow: hidden; /* Prevent scrollbars from body */
+            overflow: hidden; /* Prevent body scroll */
         }
         .admin-home-container {
             display: flex;
-            height: 100vh; /* Full viewport height */
-            width: 100vw; /* Full viewport width */
+            min-height: 100vh; /* Allow expansion with content */
+            width: 100vw;
             position: relative;
-            overflow: hidden;
         }
         .admin-sidebar {
             width: 250px;
             background-color: #f4f4f4;
             padding: 10px;
             position: absolute;
-            top: 60px; /* Start below header */
-            bottom: 0;
+            top: 60px; /* Below header */
+            bottom: 40px; /* Above footer */
             left: 0;
-            z-index: 1; /* Behind header and footer */
+            z-index: 1;
             box-sizing: border-box;
-            overflow-y: auto; /* Allow scrolling within sidebar if needed */
+            overflow-y: auto; /* Sidebar scrolling if needed */
         }
         .admin-content {
             flex-grow: 1;
-            margin-left: 250px; /* Offset for sidebar width */
+            margin-left: 250px; /* Right of sidebar */
             padding: 20px;
             box-sizing: border-box;
-            height: calc(100vh - 60px - 40px); /* Adjust for header and footer heights */
-            margin-top: 60px; /* Space for header */
-            margin-bottom: 40px; /* Space for footer */
+            height: calc(100vh - 60px - 40px); /* Exact height from header to footer */
+            margin-top: 60px; /* Start below header */
+            overflow-y: hidden; /* Disable content area scrolling, handled by pages */
         }
         /* Ensure included pages don't inherit unwanted styles */
         .admin-content * {

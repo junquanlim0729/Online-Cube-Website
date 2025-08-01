@@ -17,43 +17,45 @@ mysqli_stmt_close($stmt);
     <a href="?page=admin_add_staff.php" style="padding: 5px 10px; background: #28a745; color: white; text-decoration: none; border-radius: 3px;">Add Staff</a>
 </div>
 
-<div id="adminGrid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
-    <?php if (empty($staff_list)): ?>
-        <p style="grid-column: 1 / -1; text-align: center; color: #666;">No Admins or Super Admins found.</p>
-    <?php else: ?>
-        <?php foreach ($staff_list as $staff): ?>
-            <?php if ($staff['Staff_ID'] != $current_staff_id): ?>
-                <div class="admin-box" data-name="<?php echo htmlspecialchars(strtolower($staff['Staff_Name'] ?? $staff['Staff_Email'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($staff['Staff_Email'])); ?>" style="border: 1px solid #ccc; border-radius: 5px; padding: 15px; text-align: center; min-height: 300px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
-                    <div>
-                        <div style="width: 150px; height: 150px; margin: 0 auto 15px; border: 2px solid #ccc; border-radius: 5px; overflow: hidden;">
-                            <img src="https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png" alt="Staff Profile" style="width: 100%; height: 100%; object-fit: cover;">
+<div style="width: 100%; max-height: calc(100% - 60px); overflow-y: auto; padding-bottom: 20px;">
+    <div id="adminGrid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+        <?php if (empty($staff_list)): ?>
+            <p style="grid-column: 1 / -1; text-align: center; color: #666;">No Admins or Super Admins found.</p>
+        <?php else: ?>
+            <?php foreach ($staff_list as $staff): ?>
+                <?php if ($staff['Staff_ID'] != $current_staff_id): ?>
+                    <div class="admin-box" data-name="<?php echo htmlspecialchars(strtolower($staff['Staff_Name'] ?? $staff['Staff_Email'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($staff['Staff_Email'])); ?>" style="border: 1px solid #ccc; border-radius: 5px; padding: 15px; text-align: center; min-height: 300px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div style="width: 150px; height: 150px; margin: 0 auto 15px; border: 2px solid #ccc; border-radius: 5px; overflow: hidden;">
+                                <img src="https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png" alt="Staff Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="font-weight: bold; color: #333;">Name:</span>
+                                <span style="color: #555; text-align: right; flex-grow: 1; padding-left: 10px;"><?php echo htmlspecialchars($staff['Staff_Name'] ?? $staff['Staff_Email']); ?></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="font-weight: bold; color: #333;">Email:</span>
+                                <span style="color: #555; text-align: right; flex-grow: 1; padding-left: 10px; word-break: break-all;"><?php echo htmlspecialchars($staff['Staff_Email']); ?></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <span style="font-weight: bold; color: #333;">Role:</span>
+                                <span style="color: #555; text-align: right; flex-grow: 1; padding-left: 10px;"><?php echo htmlspecialchars($staff['Staff_Role']); ?></span>
+                            </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span style="font-weight: bold; color: #333;">Name:</span>
-                            <span style="color: #555; text-align: right; flex-grow: 1; padding-left: 10px;"><?php echo htmlspecialchars($staff['Staff_Name'] ?? $staff['Staff_Email']); ?></span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span style="font-weight: bold; color: #333;">Email:</span>
-                            <span style="color: #555; text-align: right; flex-grow: 1; padding-left: 10px; word-break: break-all;"><?php echo htmlspecialchars($staff['Staff_Email']); ?></span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                            <span style="font-weight: bold; color: #333;">Role:</span>
-                            <span style="color: #555; text-align: right; flex-grow: 1; padding-left: 10px;"><?php echo htmlspecialchars($staff['Staff_Role']); ?></span>
+                        <div>
+                            <form method="POST" action="" style="display: inline;" onsubmit="return confirm('Are you sure you want to <?php echo $staff['Staff_Status'] ? 'deactivate' : 'activate'; ?> this staff?');">
+                                <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff['Staff_ID']); ?>">
+                                <input type="hidden" name="action" value="toggle_status">
+                                <button type="submit" style="padding: 5px 10px; background: <?php echo $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                                    <?php echo $staff['Staff_Status'] ? 'Deactivate' : 'Activate'; ?>
+                                </button>
+                            </form>
                         </div>
                     </div>
-                    <div>
-                        <form method="POST" action="" style="display: inline;" onsubmit="return confirm('Are you sure you want to <?php echo $staff['Staff_Status'] ? 'deactivate' : 'activate'; ?> this staff?');">
-                            <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff['Staff_ID']); ?>">
-                            <input type="hidden" name="action" value="toggle_status">
-                            <button type="submit" style="padding: 5px 10px; background: <?php echo $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>; color: white; border: none; border-radius: 3px; cursor: pointer;">
-                                <?php echo $staff['Staff_Status'] ? 'Deactivate' : 'Activate'; ?>
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            <?php endif; ?>
-        <?php endforeach; ?>
-    <?php endif; ?>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
 </div>
 
 <script>
@@ -80,10 +82,11 @@ document.addEventListener('DOMContentLoaded', function() {
     body {
         margin: 0;
         padding: 0;
-        margin-top: 0px; /* Start from bottom of header (60px height) */
-        margin-bottom: 0px; /* Remove bottom margin to extend to footer */
-        height: calc(100vh - 60px); /* Extend to top of footer, header (60px) subtracted */
-        box-sizing: border-box; /* Ensure padding/margins are included in height */
+        min-height: 100vh; /* Ensure body takes full height */
+        box-sizing: border-box; /* Include padding/margins in height */
+    }
+    #adminGrid {
+        padding-bottom: 20px; /* Ensure space at bottom */
     }
 </style>
 
