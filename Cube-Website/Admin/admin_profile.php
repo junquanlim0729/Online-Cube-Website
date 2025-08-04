@@ -15,17 +15,18 @@ if (file_exists($config_file)) {
 $default_image = $config_data['default_image'] ?? 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
 $allowed_types = $config_data['allowed_types'] ?? ['image/png', 'image/jpeg'];
 $upload_dir = rtrim($config_data['upload_dir'] ?? 'uploads', '/') . '/';
-$error_messages = $config_data['error_messages'] ?? [];
-$single_image_policy = $config_data['single_image_policy'] ?? true;
-$cleanup_on_update = $config_data['cleanup_on_update'] ?? true;
-
-// Ensure upload directory exists and is writable
 if (!file_exists($upload_dir)) {
-    if (!mkdir($upload_dir, 0755, true)) {
+    $upload_dir = __DIR__ . '/' . $upload_dir;
+    if (!file_exists($upload_dir) && !mkdir($upload_dir, 0755, true)) {
         error_log("Failed to create upload directory: $upload_dir");
         $messages[] = "Error: Could not create upload directory.";
     }
 }
+$error_messages = $config_data['error_messages'] ?? [];
+$single_image_policy = $config_data['single_image_policy'] ?? true;
+$cleanup_on_update = $config_data['cleanup_on_update'] ?? true;
+
+// Ensure upload directory is writable
 if (!is_writable($upload_dir)) {
     chmod($upload_dir, 0755);
     if (!is_writable($upload_dir)) {
@@ -40,14 +41,6 @@ $state_data = [];
 if (file_exists($state_file)) {
     $state_content = file_get_contents($state_file);
     $state_data = json_decode($state_content, true) ?: [];
-}
-
-// Initialize upload log file for real-time tracking
-$log_file = 'upload_log.json';
-$log_data = [];
-if (file_exists($log_file)) {
-    $log_content = file_get_contents($log_file);
-    $log_data = json_decode($log_content, true) ?: [];
 }
 
 // Fetch staff data from database
@@ -88,7 +81,7 @@ if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPL
         }
 
         if (!move_uploaded_file($image_tmp, $upload_file)) {
-            throw new Exception($error_messages['upload_failed'] ?? "Failed to upload the image.");
+            throw new Exception($error_messages['upload_failed'] ?? "Failed to upload the image. Check directory permissions or path: $upload_file");
         }
 
         $update_sql = "UPDATE Staff SET Profile_Image = ? WHERE Staff_ID = ?";
@@ -102,15 +95,6 @@ if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPL
         $state_data[$staff_id] = $upload_file;
         file_put_contents($state_file, json_encode($state_data, JSON_PRETTY_PRINT));
 
-        // Log upload action
-        $log_data[] = [
-            'staff_id' => $staff_id,
-            'action' => 'upload',
-            'image' => $upload_file,
-            'timestamp' => date('c')
-        ];
-        file_put_contents($log_file, json_encode($log_data, JSON_PRETTY_PRINT));
-
         mysqli_commit($conn);
         echo json_encode(['status' => 'success', 'image' => $upload_file . '?t=' . time()]);
     } catch (Exception $e) {
@@ -122,16 +106,6 @@ if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPL
         $new_image = $staff_data['Profile_Image'] ?: $default_image;
         $state_data[$staff_id] = $new_image;
         file_put_contents($state_file, json_encode($state_data, JSON_PRETTY_PRINT));
-
-        // Log error
-        $log_data[] = [
-            'staff_id' => $staff_id,
-            'action' => 'upload_error',
-            'error' => $e->getMessage(),
-            'timestamp' => date('c')
-        ];
-        file_put_contents($log_file, json_encode($log_data, JSON_PRETTY_PRINT));
-
         echo json_encode(['status' => 'error', 'message' => $e->getMessage(), 'image' => $new_image . '?t=' . time()]);
     }
     exit();
@@ -158,15 +132,6 @@ if (isset($_POST['remove_image'])) {
         $state_data[$staff_id] = $default_image;
         file_put_contents($state_file, json_encode($state_data, JSON_PRETTY_PRINT));
 
-        // Log removal action
-        $log_data[] = [
-            'staff_id' => $staff_id,
-            'action' => 'remove',
-            'image' => $default_image,
-            'timestamp' => date('c')
-        ];
-        file_put_contents($log_file, json_encode($log_data, JSON_PRETTY_PRINT));
-
         mysqli_commit($conn);
         echo json_encode(['status' => 'success', 'image' => $default_image . '?t=' . time()]);
     } catch (Exception $e) {
@@ -175,16 +140,6 @@ if (isset($_POST['remove_image'])) {
         $new_image = $staff_data['Profile_Image'] ?: $default_image;
         $state_data[$staff_id] = $new_image;
         file_put_contents($state_file, json_encode($state_data, JSON_PRETTY_PRINT));
-
-        // Log error
-        $log_data[] = [
-            'staff_id' => $staff_id,
-            'action' => 'remove_error',
-            'error' => $e->getMessage(),
-            'timestamp' => date('c')
-        ];
-        file_put_contents($log_file, json_encode($log_data, JSON_PRETTY_PRINT));
-
         echo json_encode(['status' => 'error', 'message' => $e->getMessage(), 'image' => $new_image . '?t=' . time()]);
     }
     exit();
@@ -217,6 +172,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_edit'])) {
 mysqli_close($conn);
 ?>
 
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
 <div style="margin-top: 20px; margin-bottom: 20px; max-height: calc(100% - 60px); overflow-y: auto; position: relative;">
     <h2 style="position: absolute; top: 0; left: 0; margin: 0; padding: 10px 20px; color: #333; background: #f4f4f4; border-bottom: 1px solid #ccc;">My Profile</h2>
     <div style="display: flex; height: calc(100% - 40px); margin-top: 40px;">
@@ -228,7 +190,7 @@ mysqli_close($conn);
                 <form id="imageForm" enctype="multipart/form-data" style="display: flex; flex-direction: column; align-items: center; height: 100%; width: 100%;">
                     <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
                     <div style="width: 300px; height: 300px; border: 2px solid #ccc; border-radius: 5px; overflow: hidden; margin-bottom: 30px; display: flex; justify-content: center; align-items: center;" id="imageContainer">
-                        <img id="profileImage" src="<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=<?php echo time(); ?>" alt="Profile Image" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                        <img id="profileImage" src="<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=<?php echo time(); ?>" alt="Profile Image" style="max-width: 100%; max-height: 100%; object-fit: contain;" onload="this.style.opacity=1;">
                     </div>
                     <input type="file" name="profile_image" accept="<?php echo implode(',', $allowed_types); ?>" id="imageUpload" style="display: block; margin: 0 auto 15px; width: 90%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;">
                     <button type="button" id="removeImageBtn" style="display: block; margin: 0 auto 30px; width: 90%; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Remove Image</button>
@@ -277,8 +239,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const profileImage = document.getElementById('profileImage');
     const removeImageBtn = document.getElementById('removeImageBtn');
     const imageForm = document.getElementById('imageForm');
-    const editForm = document.getElementById('editForm');
     const messageDiv = document.getElementById('messageDiv');
+
+    function updateImage(src) {
+        const tempImg = new Image();
+        tempImg.onload = function() {
+            profileImage.src = src;
+            profileImage.style.opacity = '1';
+        };
+        tempImg.onerror = function() {
+            console.error('Image load failed:', src);
+            profileImage.src = '<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime();
+        };
+        tempImg.src = src;
+    }
 
     imageUpload.addEventListener('change', function(event) {
         const file = event.target.files[0];
@@ -286,7 +260,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            profileImage.src = e.target.result; // Live preview
+            profileImage.src = e.target.result;
+            profileImage.style.opacity = '0.5';
         };
         reader.readAsDataURL(file);
 
@@ -298,16 +273,20 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                profileImage.src = data.image;
-                messageDiv.textContent = 'Image uploaded successfully.';
+                updateImage(data.image);
+                messageDiv.textContent = 'Image uploaded successfully. Refreshing...';
+                setTimeout(() => {
+                    location.reload(); // First refresh
+                    setTimeout(() => location.reload(), 1000); // Second refresh after 1 second
+                }, 1000);
             } else {
-                profileImage.src = '<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime();
+                updateImage(data.image || '<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime());
                 messageDiv.textContent = data.message || 'Failed to upload image.';
             }
         })
         .catch(error => {
             console.error('Upload error:', error);
-            profileImage.src = '<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime();
+            updateImage('<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime());
             messageDiv.textContent = 'Error uploading image.';
         });
     });
@@ -323,21 +302,26 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                profileImage.src = data.image;
+                updateImage(data.image);
                 imageUpload.value = '';
-                messageDiv.textContent = 'Image removed successfully.';
+                messageDiv.textContent = 'Image removed successfully. Refreshing...';
+                setTimeout(() => {
+                    location.reload(); // First refresh
+                    setTimeout(() => location.reload(), 1000); // Second refresh after 1 second
+                }, 1000);
             } else {
-                profileImage.src = '<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime();
+                updateImage(data.image || '<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime());
                 messageDiv.textContent = data.message || 'Failed to remove image.';
             }
         })
         .catch(error => {
             console.error('Removal error:', error);
-            profileImage.src = '<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime();
+            updateImage('<?php echo htmlspecialchars($state_data[$staff_id] ?? $default_image); ?>?t=' + new Date().getTime());
             messageDiv.textContent = 'Error removing image.';
         });
     });
 
+    const editForm = document.getElementById('editForm');
     editForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(this);
@@ -371,4 +355,10 @@ document.addEventListener('DOMContentLoaded', function() {
         min-height: 300px;
         width: 300px;
     }
+    #profileImage {
+        transition: opacity 0.3s;
+        opacity: 1;
+    }
 </style>
+</body>
+</html>
