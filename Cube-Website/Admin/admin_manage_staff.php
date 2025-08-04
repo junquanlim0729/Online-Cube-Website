@@ -1,4 +1,5 @@
 <?php
+// PHP code remains unchanged as per instructions
 require_once 'dataconnection.php';
 
 $current_staff_id = isset($_SESSION['Staff_ID']) ? $_SESSION['Staff_ID'] : 0;
@@ -12,7 +13,7 @@ if (file_exists($state_file)) {
 }
 
 // Base query to fetch all Admins/Super Admins with profile images
-$sql = "SELECT Staff_ID, Staff_Name, Staff_Email, Staff_Status, Staff_Role, Profile_Image FROM Staff WHERE Staff_Role IN ('Admin', 'Super Admin')";
+$sql = "SELECT Staff_ID, Staff_Name, Staff_Email, Staff_Status, Staff_Role, Profile_Image, Join_Date FROM Staff WHERE Staff_Role IN ('Admin', 'Super Admin')";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
@@ -38,23 +39,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     mysqli_stmt_close($update_stmt);
 
     if ($success) {
-        $redirect_url = "?page=admin_manage_staff.php";
-        echo "<script>window.location.href = '$redirect_url';</script>";
+        echo json_encode(['success' => true, 'status' => $new_status]);
     } else {
+        echo json_encode(['success' => false]);
         error_log("Failed to update Staff_Status for Staff_ID: $staff_id");
     }
     exit();
 }
 
-// Handle add staff submission
+// Handle add staff submission via AJAX
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
     $messages = [];
     $staff_name = trim($_POST['staff_name']);
     $staff_email = trim($_POST['staff_email']);
     $staff_role = trim($_POST['staff_role']);
+    $join_date = trim($_POST['join_date']);
 
-    if (empty($staff_name) || empty($staff_email)) {
-        $messages[] = "Name and email are required.";
+    if (empty($staff_name) || empty($staff_email) || empty($join_date)) {
+        $messages[] = "Name, email, and join date are required.";
     } elseif (!filter_var($staff_email, FILTER_VALIDATE_EMAIL)) {
         $messages[] = "Invalid email format.";
     } else {
@@ -66,25 +68,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
         if (mysqli_stmt_num_rows($check_stmt) > 0) {
             $messages[] = "Email already exists.";
         } else {
-            $insert_sql = "INSERT INTO Staff (Staff_Name, Staff_Email, Staff_Role) VALUES (?, ?, ?)";
+            $insert_sql = "INSERT INTO Staff (Staff_Name, Staff_Email, Staff_Role, Join_Date, Staff_Password) VALUES (?, ?, ?, ?, ?)";
+            $staff_password = password_hash("@Bcd1234", PASSWORD_DEFAULT);
             $insert_stmt = mysqli_prepare($conn, $insert_sql);
-            mysqli_stmt_bind_param($insert_stmt, "sss", $staff_name, $staff_email, $staff_role);
+            mysqli_stmt_bind_param($insert_stmt, "sssss", $staff_name, $staff_email, $staff_role, $join_date, $staff_password);
             if (mysqli_stmt_execute($insert_stmt)) {
+                $new_staff_id = mysqli_insert_id($conn);
+                $new_staff = [
+                    'Staff_ID' => $new_staff_id,
+                    'Staff_Name' => $staff_name,
+                    'Staff_Email' => $staff_email,
+                    'Staff_Role' => $staff_role,
+                    'Join_Date' => $join_date,
+                    'Staff_Status' => 1,
+                    'Profile_Image' => $state_data[$new_staff_id] ?? 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'
+                ];
                 mysqli_stmt_close($insert_stmt);
-                header("Location: ?page=admin_manage_staff.php&add=success");
-                exit();
+                echo json_encode(['success' => true, 'message' => 'Add Staff Successfully', 'new_staff' => $new_staff]);
             } else {
                 $messages[] = "Failed to add staff. Please try again.";
+                echo json_encode(['success' => false, 'message' => $messages[0]]);
             }
         }
         mysqli_stmt_close($check_stmt);
     }
+    exit();
 }
 
 // Close connection after all operations
 mysqli_close($conn);
 ?>
 
+<!-- HTML and CSS remain unchanged -->
 <style>
     body {
         margin: 0;
@@ -120,6 +135,17 @@ mysqli_close($conn);
         border-color: #000000;
         border-radius: 5px;
         height: 430px;
+        position: relative;
+    }
+    .ams-success-message {
+        text-align: center;
+        color: #28a745;
+        font-weight: bold;
+        margin: 10px 0;
+        position: absolute;
+        top: -40px;
+        left: 0;
+        width: 100%;
     }
     .ams-searchInput {
         padding: 25px;
@@ -138,11 +164,12 @@ mysqli_close($conn);
     }
     .ams-addStaffLink {
         padding: 15px 30px;
-        background: #28a745;
+        background: #0066cc;
         color: white;
         text-decoration: none;
         border-radius: 5px;
         margin-left: auto;
+        border: 2px solid #004d99;
     }
     .ams-adminBox {
         border: 1px solid #ccc;
@@ -150,6 +177,7 @@ mysqli_close($conn);
         border-radius: 5px;
         padding: 15px;
         text-align: center;
+        line-height: 25px;
         min-height: 300px;
         box-sizing: border-box;
         display: flex;
@@ -175,28 +203,32 @@ mysqli_close($conn);
         color: #333;
         text-align: left;
         display: inline-block;
-        width: 50px;
-        margin-bottom: 10px;
+        width: 70px;
+        margin-bottom: 5px;
     }
     .ams-adminBox div:first-child span.value {
         color: #555;
         text-align: right;
         display: inline-block;
-        width: calc(100% - 60px);
-        margin-bottom: 15px;
+        width: calc(100% - 80px);
+        margin-bottom: 5px;
     }
     .ams-adminBox div:first-child span.value.role {
         text-align: right;
     }
     .ams-roleBox-admin {
-        background-color: #005bff;
+        background-color: #5490ffff;
         padding: 2px 8px;
+        border: 1px solid #ccc;
+        border-color: #005b6fff;
         border-radius: 3px;
         display: inline-block;
     }
     .ams-roleBox-superAdmin {
         background-color: #ffd700;
         padding: 2px 8px;
+        border: 1px solid #ccc;
+        border-color: #005b6fff;
         border-radius: 3px;
         display: inline-block;
     }
@@ -218,6 +250,7 @@ mysqli_close($conn);
         border-radius: 5px;
         cursor: pointer;
         width: 100%;
+        border: 2px solid #b30000;
     }
     .ams-toggleButton[form] {
         background: #28a745;
@@ -287,12 +320,9 @@ mysqli_close($conn);
         z-index: 1001;
     }
     .ams-popup-close {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        font-size: 20px;
+        color: #0066cc;
         cursor: pointer;
-        color: #333;
+        text-decoration: none;
     }
 </style>
 
@@ -312,6 +342,9 @@ mysqli_close($conn);
 </div>
 
 <div class="ams-mainContainer">
+    <?php if (isset($success_message)): ?>
+        <div class="ams-success-message"><a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a><?php echo $success_message; ?></div>
+    <?php endif; ?>
     <div class="ams-adminGrid">
         <?php if (empty($staff_list)): ?>
             <p>No Admins or Super Admins found.</p>
@@ -332,12 +365,13 @@ mysqli_close($conn);
                                     <span class="ams-roleBox-superAdmin"><span><?php echo htmlspecialchars($staff['Staff_Role']); ?></span></span>
                                 <?php endif; ?>
                             </span>
+                            <span class="label">JoinDate:</span><span class="value"><?php echo htmlspecialchars($staff['Join_Date']); ?></span>
                         </div>
                         <div>
                             <form method="POST" action="">
                                 <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff['Staff_ID']); ?>">
                                 <input type="hidden" name="action" value="toggle_status">
-                                <button type="submit" class="ams-toggleButton" style="background: <?php echo $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>" onclick="return confirmToggle(event, <?php echo htmlspecialchars($staff['Staff_ID']); ?>, <?php echo $staff['Staff_Status'] ? 'true' : 'false'; ?>)">
+                                <button type="button" class="ams-toggleButton" style="background: <?php echo $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>" onclick="confirmToggle(event, <?php echo htmlspecialchars($staff['Staff_ID']); ?>, <?php echo $staff['Staff_Status'] ? 'true' : 'false'; ?>)">
                                     <?php echo $staff['Staff_Status'] ? 'Deactivate' : 'Activate'; ?>
                                 </button>
                             </form>
@@ -352,19 +386,19 @@ mysqli_close($conn);
 <div id="ams-modal" class="ams-modal">
     <div class="ams-modal-content">
         <p>Are you sure you want to <strong id="ams-actionText"></strong> this staff?</p>
-        <button class="ams-confirmYes" onclick="confirmYes()">Yes</button>
-        <button class="ams-confirmNo" onclick="closeModal()">No</button>
+        <button class="ams-confirmYes" onclick="confirmYes(event)">Yes</button>
+        <button class="ams-confirmNo" onclick="closeModal(event)">No</button>
     </div>
 </div>
 
 <div id="ams-popup" class="ams-popup">
-    <span class="ams-popup-close" onclick="closePopup()">×</span>
+    <a href="#" class="ams-popup-close" onclick="closePopup(); return false;">Close</a>
     <h2 style="text-align: center; margin-bottom: 20px; color: #333;">Add Staff</h2>
     <?php if (isset($messages) && !empty($messages)): ?>
         <div style="text-align: center; color: #ff0000; margin-bottom: 15px;"><?php echo $messages[0]; ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="" style="display: flex; flex-direction: column; gap: 15px;">
+    <form method="POST" action="" id="addStaffForm" style="display: flex; flex-direction: column; gap: 15px;">
         <div style="display: flex; align-items: center;">
             <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Name</label>
             <input type="text" name="staff_name" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
@@ -380,7 +414,15 @@ mysqli_close($conn);
                 <option value="Super Admin">Super Admin</option>
             </select>
         </div>
-        <button type="submit" name="submit_add" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">Add Staff</button>
+        <div style="display: flex; align-items: center;">
+            <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Join Date</label>
+            <input type="date" name="join_date" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
+        </div>
+        <div style="display: flex; align-items: center;">
+            <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Password</label>
+            <input type="text" name="staff_password" value="@Bcd1234" disabled style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
+        </div>
+        <button type="submit" name="submit_add" value="Add Staff" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">Add Staff</button>
     </form>
 </div>
 
@@ -388,11 +430,11 @@ mysqli_close($conn);
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('ams-searchInput');
     const filterSelect = document.getElementById('ams-filterSelect');
-    const adminBoxes = document.querySelectorAll('.ams-adminBox');
     const adminGrid = document.querySelector('.ams-adminGrid');
+    const addStaffForm = document.getElementById('addStaffForm');
 
     // Store initial state
-    const initialBoxes = Array.from(adminBoxes);
+    let initialBoxes = Array.from(document.querySelectorAll('.ams-adminBox'));
 
     function filterAndSearch() {
         const searchTerm = searchInput.value.toLowerCase().trim();
@@ -436,67 +478,147 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentToggleForm = null;
     function confirmToggle(event, staffId, isActive) {
         event.preventDefault();
-        currentToggleForm = event.target.form;
+        currentToggleForm = event.target.closest('form');
         const actionText = isActive ? 'Deactivate' : 'Activate';
         document.getElementById('ams-actionText').textContent = actionText;
         document.getElementById('ams-modal').style.display = 'block';
-        return false;
     }
 
-    function confirmYes() {
+    function confirmYes(event) {
+        event.preventDefault();
         if (currentToggleForm) {
-            currentToggleForm.submit();
+            const formData = new FormData(currentToggleForm);
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const button = currentToggleForm.querySelector('.ams-toggleButton');
+                    button.style.backgroundColor = data.status ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)';
+                    button.textContent = data.status ? 'Activate' : 'Deactivate';
+                }
+                document.getElementById('ams-modal').style.display = 'none';
+                currentToggleForm = null;
+            })
+            .catch(error => console.error('Error:', error));
         }
-        closeModal();
     }
 
-    function closeModal() {
+    function closeModal(event) {
+        event.preventDefault();
         document.getElementById('ams-modal').style.display = 'none';
         currentToggleForm = null;
     }
 
     // Popup for add staff
     function openPopup() {
-        document.getElementById('ams-popup').style.display = 'block';
+        const popup = document.getElementById('ams-popup');
+        if (popup) {
+            popup.style.display = 'block';
+            // Reattach event listener to ensure it works after popup is shown
+            const form = document.getElementById('addStaffForm');
+            if (form) {
+                form.addEventListener('submit', handleAddStaffSubmit);
+            }
+        }
     }
 
     function closePopup() {
-        document.getElementById('ams-popup').style.display = 'none';
+        const popup = document.getElementById('ams-popup');
+        if (popup) {
+            popup.style.display = 'none';
+        }
     }
 
-    // Close popup if clicked outside
-    document.addEventListener('click', function(event) {
-        const popup = document.getElementById('ams-popup');
-        if (event.target === popup) {
-            closePopup();
-        }
+    // Handle add staff form submission with AJAX
+    function handleAddStaffSubmit(event) {
+        event.preventDefault();
+        const formData = new FormData(this);
+        formData.append('submit_add', 'Add Staff'); // Ensure submit_add is included
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const successDiv = document.createElement('div');
+                successDiv.className = 'ams-success-message';
+                successDiv.innerHTML = `<a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a>${data.message}`;
+                document.querySelector('.ams-mainContainer').insertBefore(successDiv, document.querySelector('.ams-adminGrid'));
+                setTimeout(() => successDiv.remove(), 5000);
+
+                // Add new staff to grid without refresh
+                const newStaffBox = document.createElement('div');
+                newStaffBox.className = 'ams-adminBox';
+                newStaffBox.setAttribute('data-name', data.new_staff.Staff_Name.toLowerCase());
+                newStaffBox.setAttribute('data-email', data.new_staff.Staff_Email.toLowerCase());
+                newStaffBox.setAttribute('data-role', data.new_staff.Staff_Role.toLowerCase());
+                newStaffBox.innerHTML = `
+                    <div>
+                        <div><img src="${data.new_staff.Profile_Image}" alt="Staff Profile"></div>
+                        <span class="label">Name:</span><span class="value">${data.new_staff.Staff_Name}</span><br>
+                        <span class="label">Email:</span><span class="value">${data.new_staff.Staff_Email}</span><br>
+                        <span class="label">Role:</span><span class="value role">
+                            <span class="${data.new_staff.Staff_Role === 'Admin' ? 'ams-roleBox-admin' : 'ams-roleBox-superAdmin'}"><span>${data.new_staff.Staff_Role}</span></span>
+                        </span>
+                        <span class="label">JoinDate:</span><span class="value">${data.new_staff.Join_Date}</span>
+                    </div>
+                    <div>
+                        <form method="POST" action="">
+                            <input type="hidden" name="staff_id" value="${data.new_staff.Staff_ID}">
+                            <input type="hidden" name="action" value="toggle_status">
+                            <button type="button" class="ams-toggleButton" style="background: #28a745" onclick="confirmToggle(event, ${data.new_staff.Staff_ID}, true)">Activate</button>
+                        </form>
+                    </div>
+                `;
+                adminGrid.appendChild(newStaffBox);
+                initialBoxes = Array.from(document.querySelectorAll('.ams-adminBox'));
+
+                closePopup();
+            } else {
+                const errorDiv = document.createElement('div');
+                errorDiv.style = 'text-align: center; color: #ff0000; margin-bottom: 15px;';
+                errorDiv.textContent = data.message;
+                this.insertBefore(errorDiv, this.firstChild);
+                setTimeout(() => errorDiv.remove(), 5000);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // Ensure toggle buttons are functional
+    document.querySelectorAll('.ams-toggleButton').forEach(button => {
+        button.addEventListener('click', function(event) {
+            const form = this.closest('form');
+            if (form) {
+                const staffId = form.querySelector('input[name="staff_id"]').value;
+                const isActive = this.style.backgroundColor === 'rgb(40, 167, 69)';
+                confirmToggle(event, staffId, !isActive);
+            }
+        });
     });
 
-    // Handle add staff form submission
-    const addStaffForm = document.querySelector('#ams-popup form');
-    if (addStaffForm) {
-        addStaffForm.addEventListener('submit', function(event) {
+    // Ensure Add Staff button is functional
+    const addStaffButton = document.querySelector('.ams-addStaffLink');
+    if (addStaffButton) {
+        addStaffButton.addEventListener('click', function(event) {
             event.preventDefault();
-            const formData = new FormData(this);
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.text();
-                }
-                throw new Error('Network response was not ok');
-            })
-            .then(() => {
-                closePopup();
-                location.reload();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to add staff. Please try again.');
-            });
+            openPopup();
         });
+    }
+
+    // Ensure Close link works
+    document.querySelector('.ams-popup-close').addEventListener('click', function(event) {
+        event.preventDefault();
+        closePopup();
+    });
+
+    // Initial attachment of form submit event
+    if (addStaffForm) {
+        addStaffForm.addEventListener('submit', handleAddStaffSubmit);
     }
 });
 </script>
