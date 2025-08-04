@@ -3,8 +3,16 @@ require_once 'dataconnection.php';
 
 $current_staff_id = isset($_SESSION['Staff_ID']) ? $_SESSION['Staff_ID'] : 0;
 
-// Base query to fetch all Admins/Super Admins
-$sql = "SELECT Staff_ID, Staff_Name, Staff_Email, Staff_Status, Staff_Role FROM Staff WHERE Staff_Role IN ('Admin', 'Super Admin')";
+// Load or initialize the image state JSON file
+$state_file = 'profile_image_state.json';
+$state_data = [];
+if (file_exists($state_file)) {
+    $state_content = file_get_contents($state_file);
+    $state_data = json_decode($state_content, true) ?: [];
+}
+
+// Base query to fetch all Admins/Super Admins with profile images
+$sql = "SELECT Staff_ID, Staff_Name, Staff_Email, Staff_Status, Staff_Role, Profile_Image FROM Staff WHERE Staff_Role IN ('Admin', 'Super Admin')";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
@@ -46,45 +54,51 @@ mysqli_close($conn);
     body {
         margin: 0;
         padding: 0;
-        min-height: 100vh;
+        margin-top: 0px;
+        margin-bottom: 0px;
+        height: calc(100vh - 60px);
         box-sizing: border-box;
-        background-color: #f0f0f0; /* Grey background behind the grid */
+        background-color: white;
     }
-    #adminGrid {
+    .ams-adminGrid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 20px;
         padding: 20px;
-        background-color: transparent; /* Ensure grid background is transparent */
+        background-color: transparent;
     }
-    div[style*="margin-top: 20px; margin-bottom: 20px;"] {
+    .ams-container {
         margin-top: 20px;
         margin-bottom: 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
-    #searchInput {
-        padding: 5px;
+    .ams-mainContainer {
+        max-height: calc(78vh - 60px - 80px); /* Adjusted for header (60px) and footer (40px) */
+        overflow-y: auto;
+        padding-bottom: 10px;
+        background-color: lightgrey;
         border: 1px solid #ccc;
-        border-radius: 3px;
-        width: 200px;
+        border-color: #000000;
+        border-radius: 5px;
+    }
+    .ams-searchInput {
+        padding: 12px; /* Increased padding for larger size */
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        width: 300px; /* Increased width for better usability */
     }
     a[href="?page=admin_add_staff.php"] {
-        padding: 5px 10px;
+        padding: 12px 20px; /* Increased padding for larger size */
         background: #28a745;
         color: white;
         text-decoration: none;
-        border-radius: 3px;
+        border-radius: 5px;
     }
-    div[style*="width: 100%; max-height: calc(100% - 60px);"] {
-        width: 100%;
-        max-height: calc(100% - 60px);
-        overflow-y: auto;
-        padding-bottom: 20px;
-    }
-    .admin-box {
+    .ams-adminBox {
         border: 1px solid #ccc;
+        border-color: #005b6fff;
         border-radius: 5px;
         padding: 15px;
         text-align: center;
@@ -93,9 +107,9 @@ mysqli_close($conn);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        background-color: white; /* White background for admin boxes */
+        background-color: white;
     }
-    .admin-box div:first-child div {
+    .ams-adminBox div:first-child div {
         width: 150px;
         height: 150px;
         margin: 0 auto 15px;
@@ -103,36 +117,40 @@ mysqli_close($conn);
         border-radius: 5px;
         overflow: hidden;
     }
-    .admin-box div:first-child div img {
+    .ams-adminBox div:first-child div img {
         width: 100%;
         height: 100%;
         object-fit: cover;
     }
-    .admin-box div:first-child span.label {
+    .ams-adminBox div:first-child span.label {
         font-weight: bold;
         color: #333;
-        margin-right: 10px;
+        text-align: left;
+        display: inline-block;
+        width: 50px;
     }
-    .admin-box div:first-child span.value {
+    .ams-adminBox div:first-child span.value {
         color: #555;
         text-align: right;
-        flex-grow: 1;
+        display: inline-block;
+        width: calc(100% - 60px);
     }
-    .admin-box div:first-child span.value:nth-child(3) {
-        word-break: break-all;
+    .ams-adminBox div:last-child {
+        margin-top: auto;
     }
-    .admin-box div:last-child form {
+    .ams-adminBox div:last-child form {
         display: inline;
     }
-    .admin-box div:last-child button {
-        padding: 5px 10px;
+    .ams-adminBox div:last-child button {
+        padding: 10px 20px; /* Increased padding for larger size */
         background: #dc3545;
         color: white;
         border: none;
-        border-radius: 3px;
+        border-radius: 5px;
         cursor: pointer;
+        width: 100%;
     }
-    .admin-box div:last-child button[form] {
+    .ams-adminBox div:last-child button[form] {
         background: #28a745;
     }
     p[style*="grid-column"] {
@@ -140,32 +158,44 @@ mysqli_close($conn);
         text-align: center;
         color: #666;
     }
+    h1.amsheader {
+        font-size: 24px;
+        color: #333;
+        margin: 10px 0px 10px 0px;
+    }
+    h2.amssubtitle {
+        font-size: 16px;
+        color: #666;
+        margin: 10px 0px 10px 0px;
+    }
 </style>
 
 <body>
-<div style="margin-top: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-    <input type="text" id="searchInput" placeholder="Search by name or email">
+<h1 class="amsheader">Admin Staff Management</h1>
+<h2 class="amssubtitle">Manage and monitor all admin and super admin accounts</h2>
+<div class="ams-container">
+    <input type="text" id="ams-searchInput" placeholder="Search by name or email">
     <a href="?page=admin_add_staff.php">Add Staff</a>
 </div>
 
-<div style="width: 100%; max-height: calc(100% - 60px); overflow-y: auto; padding-bottom: 20px;">
-    <div id="adminGrid">
+<div class="ams-mainContainer">
+    <div class="ams-adminGrid">
         <?php if (empty($staff_list)): ?>
             <p>No Admins or Super Admins found.</p>
         <?php else: ?>
             <?php foreach ($staff_list as $staff): ?>
                 <?php if ($staff['Staff_ID'] != $current_staff_id): ?>
-                    <div class="admin-box" data-name="<?php echo htmlspecialchars(strtolower($staff['Staff_Name'] ?? $staff['Staff_Email'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($staff['Staff_Email'])); ?>">
+                    <div class="ams-adminBox" data-name="<?php echo htmlspecialchars(strtolower($staff['Staff_Name'] ?? $staff['Staff_Email'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($staff['Staff_Email'])); ?>">
                         <div>
                             <div>
-                                <img src="https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png" alt="Staff Profile">
+                                <img src="<?php echo htmlspecialchars($state_data[$staff['Staff_ID']] ?? $staff['Profile_Image'] ?? 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'); ?>" alt="Staff Profile">
                             </div>
                             <span class="label">Name:</span><span class="value"><?php echo htmlspecialchars($staff['Staff_Name'] ?? $staff['Staff_Email']); ?></span><br>
                             <span class="label">Email:</span><span class="value"><?php echo htmlspecialchars($staff['Staff_Email']); ?></span><br>
                             <span class="label">Role:</span><span class="value"><?php echo htmlspecialchars($staff['Staff_Role']); ?></span>
                         </div>
                         <div>
-                            <form method="POST" action="" onsubmit="return confirm('Are you sure you want to <?php echo $staff['Staff_Status'] ? 'deactivate' : 'activate'; ?> this staff?');">
+                            <form method="POST" action="">
                                 <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff['Staff_ID']); ?>">
                                 <input type="hidden" name="action" value="toggle_status">
                                 <button type="submit" style="background: <?php echo $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>;">
@@ -183,8 +213,8 @@ mysqli_close($conn);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    const adminBoxes = document.querySelectorAll('.admin-box');
+    const searchInput = document.getElementById('ams-searchInput');
+    const adminBoxes = document.querySelectorAll('.ams-adminBox');
 
     searchInput.addEventListener('input', function() {
         const searchTerm = this.value.toLowerCase().trim();
