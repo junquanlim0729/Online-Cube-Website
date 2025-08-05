@@ -2,22 +2,34 @@
 date_default_timezone_set('Asia/Kuala_Lumpur');
 require_once 'dataconnection.php';
 
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Disable output buffering and set error handling
+ob_start();
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', 'php_errors.log');
 ini_set('default_socket_timeout', 30);
+
+// Debug log to confirm request type and session
+$is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+error_log("Request for " . $_SERVER['REQUEST_URI'] . " - AJAX: " . ($is_ajax ? 'Yes' : 'No') . ", Session Staff_ID: " . (isset($_SESSION['Staff_ID']) ? $_SESSION['Staff_ID'] : 'Not set') . ", Role: " . (isset($_SESSION['role']) ? $_SESSION['role'] : 'Not set'));
 
 // Connection retry mechanism
 function getConnection($attempt = 0) {
     global $conn;
     $max_attempts = 3;
     if ($attempt >= $max_attempts) {
-        die("Connection failed after $max_attempts attempts: " . mysqli_connect_error());
+        error_log("Connection failed after $max_attempts attempts: " . mysqli_connect_error());
+        ob_end_clean();
+        die(json_encode(['success' => false, 'error' => 'Database connection failed']));
     }
     $conn = mysqli_connect("localhost", "root", "", "Cube");
     if (!$conn) {
-        sleep(2); // Wait before retry
+        sleep(2);
         return getConnection($attempt + 1);
     }
     return $conn;
@@ -25,17 +37,10 @@ function getConnection($attempt = 0) {
 
 $conn = getConnection();
 
-// Check if this is an AJAX request
-$is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
-
-if (!$is_ajax && (!isset($_SESSION['Staff_ID']) || $_SESSION['role'] !== 'admin')) {
+// Session check only for non-AJAX
+if (!$is_ajax && (!isset($_SESSION['Staff_ID']) || (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'))) {
     header("Location: admin_login.php");
     exit();
-}
-
-// Check connection
-if (!$conn) {
-    die("Connection failed: " . mysqli_connect_error());
 }
 
 $current_staff_id = isset($_SESSION['Staff_ID']) ? $_SESSION['Staff_ID'] : 0;
@@ -49,12 +54,12 @@ if (file_exists($state_file)) {
 }
 
 // Base query to fetch all Admins/Super Admins with profile images
-if (!$is_ajax) { // Only run this for non-AJAX (page load)
+if (!$is_ajax) {
     $sql = "SELECT Staff_ID, Staff_Name, Staff_Email, Staff_Status, Staff_Role, Profile_Image, Join_Date FROM Staff WHERE Staff_Role IN ('Admin', 'Super Admin')";
     $result = mysqli_query($conn, $sql);
     if (!$result) {
         $staff_list = [];
-        echo "<p style='color: red;'>Query failed: " . mysqli_error($conn) . "</p>";
+        error_log("Query failed: " . mysqli_error($conn));
     } else {
         $staff_list = mysqli_fetch_all($result, MYSQLI_ASSOC);
         mysqli_free_result($result);
@@ -63,7 +68,10 @@ if (!$is_ajax) { // Only run this for non-AJAX (page load)
 
 // Handle status toggle
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] === 'toggle_status') {
+    ob_clean();
+    header('Content-Type: application/json');
     $staff_id = intval($_POST['staff_id']);
+    error_log("Toggle status for staff_id: $staff_id");
     $sql = "SELECT Staff_Status FROM Staff WHERE Staff_ID = ?";
     $stmt = mysqli_prepare($conn, $sql);
     if ($stmt) {
@@ -83,37 +91,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
                 if ($success) {
                     echo json_encode(['success' => true, 'status' => $new_status]);
+                    ob_end_flush();
+                    exit();
                 } else {
                     $error = mysqli_error($conn);
+                    error_log("Update failed for staff_id $staff_id: $error");
                     echo json_encode(['success' => false, 'error' => "Update failed: $error"]);
+                    ob_end_flush();
+                    exit();
                 }
-            } else {
-                $error = mysqli_error($conn);
-                echo json_encode(['success' => false, 'error' => "Prepare failed: $error"]);
             }
-        } else {
-            $error = mysqli_error($conn);
-            echo json_encode(['success' => false, 'error' => "Execute failed: $error"]);
         }
-    } else {
-        $error = mysqli_error($conn);
-        echo json_encode(['success' => false, 'error' => "Prepare failed: $error"]);
     }
+    echo json_encode(['success' => false, 'error' => 'Database operation failed']);
+    ob_end_flush();
     exit();
 }
 
 // Handle add staff submission via AJAX
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
-    $messages = [];
-    $staff_name = trim($_POST['staff_name']);
-    $staff_email = trim($_POST['staff_email']);
-    $staff_role = trim($_POST['staff_role']);
-    $join_date = trim($_POST['join_date']);
+    ob_clean();
+    header('Content-Type: application/json');
+    error_log("Add staff attempt - POST data: " . print_r($_POST, true));
+
+    $response = ['success' => false, 'message' => ''];
+    $staff_name = trim($_POST['staff_name'] ?? '');
+    $staff_email = trim($_POST['staff_email'] ?? '');
+    $staff_role = trim($_POST['staff_role'] ?? '');
+    $join_date = trim($_POST['join_date'] ?? '');
 
     if (empty($staff_name) || empty($staff_email) || empty($join_date)) {
-        $messages[] = "Name, email, and join date are required.";
+        $response['message'] = "Name, email, and join date are required.";
     } elseif (!filter_var($staff_email, FILTER_VALIDATE_EMAIL)) {
-        $messages[] = "Invalid email format.";
+        $response['message'] = "Invalid email format.";
     } else {
         $check_sql = "SELECT Staff_ID FROM Staff WHERE Staff_Email = ?";
         $check_stmt = mysqli_prepare($conn, $check_sql);
@@ -122,7 +132,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
             if (mysqli_stmt_execute($check_stmt)) {
                 mysqli_stmt_store_result($check_stmt);
                 if (mysqli_stmt_num_rows($check_stmt) > 0) {
-                    $messages[] = "Email already exists.";
+                    $response['message'] = "Email already exists.";
                 } else {
                     $staff_password = password_hash("@Bcd1234", PASSWORD_DEFAULT);
                     $insert_sql = "INSERT INTO Staff (Staff_Name, Staff_Email, Staff_Role, Join_Date, Staff_Password) VALUES (?, ?, ?, ?, ?)";
@@ -131,44 +141,55 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
                         mysqli_stmt_bind_param($insert_stmt, "sssss", $staff_name, $staff_email, $staff_role, $join_date, $staff_password);
                         if (mysqli_stmt_execute($insert_stmt)) {
                             $new_staff_id = mysqli_insert_id($conn);
-                            $new_staff = [
-                                'Staff_ID' => $new_staff_id,
-                                'Staff_Name' => $staff_name,
-                                'Staff_Email' => $staff_email,
-                                'Staff_Role' => $staff_role,
-                                'Join_Date' => $join_date,
-                                'Staff_Status' => 1,
-                                'Profile_Image' => $state_data[$new_staff_id] ?? 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'
+                            $response = [
+                                'success' => true,
+                                'message' => 'Added staff successfully',
+                                'refresh' => true,
+                                'new_staff' => [
+                                    'Staff_ID' => $new_staff_id,
+                                    'Staff_Name' => $staff_name,
+                                    'Staff_Email' => $staff_email,
+                                    'Staff_Role' => $staff_role,
+                                    'Join_Date' => $join_date,
+                                    'Staff_Status' => 1,
+                                    'Profile_Image' => $state_data[$new_staff_id] ?? 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'
+                                ]
                             ];
-                            mysqli_stmt_close($insert_stmt);
-                            echo json_encode(['success' => true, 'message' => 'Added staff successfully', 'new_staff' => $new_staff, 'refresh' => true]);
                         } else {
                             $error = mysqli_error($conn);
-                            $messages[] = "Failed to add staff. Error: $error";
-                            echo json_encode(['success' => false, 'message' => $messages[0], 'error' => $error, 'full_response' => ob_get_clean()]);
+                            error_log("Insert failed: $error");
+                            $response['message'] = "Failed to add staff. Error: $error";
+                            $response['error'] = $error;
                         }
+                        mysqli_stmt_close($insert_stmt);
                     } else {
                         $error = mysqli_error($conn);
-                        $messages[] = "Prepare failed. Error: $error";
-                        echo json_encode(['success' => false, 'message' => $messages[0], 'error' => $error, 'full_response' => ob_get_clean()]);
+                        error_log("Prepare failed: $error");
+                        $response['message'] = "Prepare failed. Error: $error";
+                        $response['error'] = $error;
                     }
                 }
                 mysqli_stmt_close($check_stmt);
             } else {
                 $error = mysqli_error($conn);
-                $messages[] = "Execute failed. Error: $error";
-                echo json_encode(['success' => false, 'message' => $messages[0], 'error' => $error, 'full_response' => ob_get_clean()]);
+                error_log("Execute failed: $error");
+                $response['message'] = "Execute failed. Error: $error";
+                $response['error'] = $error;
             }
         } else {
             $error = mysqli_error($conn);
-            $messages[] = "Prepare failed. Error: $error";
-            echo json_encode(['success' => false, 'message' => $messages[0], 'error' => $error, 'full_response' => ob_get_clean()]);
+            error_log("Prepare failed: $error");
+            $response['message'] = "Prepare failed. Error: $error";
+            $response['error'] = $error;
         }
     }
+    
+    echo json_encode($response);
+    ob_end_flush();
     exit();
 }
 
-// HTML output only for non-AJAX requests
+// HTML output for non-AJAX requests
 if (!$is_ajax) {
     ?>
     <style>
@@ -234,7 +255,7 @@ if (!$is_ajax) {
             margin-left: 10px;
         }
         .ams-addStaffLink {
-            padding: 15px 30px;
+            padding: 12px 30px;
             background: #0066cc;
             color: white;
             text-decoration: none;
@@ -405,14 +426,14 @@ if (!$is_ajax) {
     <h2 class="amssubtitle">Manage and monitor all admin and super admin accounts</h2>
     <div class="ams-container">
         <div>
-            <input type="text" id="ams-searchInput" placeholder="Search by name or email">
-            <select id="ams-filterSelect" class="ams-filterSelect">
+            <input type="text" id="ams-searchInput" placeholder="Search by name or email" title="Search staff by name or email">
+            <select id="ams-filterSelect" class="ams-filterSelect" title="Filter staff by role">
                 <option value="all">All Roles</option>
                 <option value="Admin">Admin</option>
                 <option value="Super Admin">Super Admin</option>
             </select>
         </div>
-        <a href="#" class="ams-addStaffLink" onclick="openPopup(); return false;">Add Staff</a>
+        <a href="#" class="ams-addStaffLink" onclick="openPopup(); return false;" title="Add new staff member">Add Staff</a>
     </div>
 
     <div class="ams-mainContainer">
@@ -424,7 +445,7 @@ if (!$is_ajax) {
                 <p>No Admins or Super Admins found.</p>
             <?php else: ?>
                 <?php foreach ($staff_list as $staff): ?>
-                    <?php if ($staff['Staff_ID'] != $current_staff_id): ?>
+                    <?php if (isset($staff['Staff_ID']) && $staff['Staff_ID'] != $current_staff_id): ?>
                         <div class="ams-adminBox" data-name="<?php echo htmlspecialchars(strtolower($staff['Staff_Name'] ?? $staff['Staff_Email'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($staff['Staff_Email'])); ?>" data-role="<?php echo htmlspecialchars(strtolower($staff['Staff_Role'])); ?>">
                             <div>
                                 <div>
@@ -445,8 +466,8 @@ if (!$is_ajax) {
                                 <form method="POST" action="">
                                     <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff['Staff_ID']); ?>">
                                     <input type="hidden" name="action" value="toggle_status">
-                                    <button type="button" class="ams-toggleButton" style="background: <?php echo $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>" onclick="confirmToggle(event, <?php echo htmlspecialchars($staff['Staff_ID']); ?>, <?php echo $staff['Staff_Status'] ? 'true' : 'false'; ?>)">
-                                        <?php echo $staff['Staff_Status'] ? 'Deactivate' : 'Activate'; ?>
+                                    <button type="button" class="ams-toggleButton" style="background: <?php echo isset($staff['Staff_Status']) && $staff['Staff_Status'] ? '#dc3545' : '#28a745'; ?>" onclick="confirmToggle(event, <?php echo htmlspecialchars($staff['Staff_ID']); ?>, <?php echo json_encode(isset($staff['Staff_Status']) && $staff['Staff_Status']); ?>)" title="<?php echo isset($staff['Staff_Status']) && $staff['Staff_Status'] ? 'Deactivate this staff' : 'Activate this staff'; ?>">
+                                        <?php echo isset($staff['Staff_Status']) && $staff['Staff_Status'] ? 'Deactivate' : 'Activate'; ?>
                                     </button>
                                 </form>
                             </div>
@@ -460,42 +481,40 @@ if (!$is_ajax) {
     <div id="ams-modal" class="ams-modal">
         <div class="ams-modal-content">
             <p>Are you sure you want to <strong id="ams-actionText"></strong> this staff?</p>
-            <button class="ams-confirmYes" onclick="confirmYes(event)">Yes</button>
-            <button class="ams-confirmNo" onclick="closeModal(event)">No</button>
+            <button class="ams-confirmYes" onclick="confirmYes(event)" title="Confirm action">Yes</button>
+            <button class="ams-confirmNo" onclick="closeModal(event)" title="Cancel action">No</button>
         </div>
     </div>
 
     <div id="ams-popup" class="ams-popup">
         <div class="ams-popup-content">
             <h2 style="text-align: center; margin-bottom: 20px; color: #333;">Add Staff</h2>
-            <?php if (isset($messages) && !empty($messages)): ?>
-                <div style="text-align: center; color: #ff0000; margin-bottom: 15px;"><?php echo $messages[0]; ?></div>
-            <?php endif; ?>
+            <div id="ams-error-message" style="text-align: center; color: #ff0000; margin-bottom: 15px; display: none;"></div>
             <form method="POST" action="" id="addStaffForm" style="display: flex; flex-direction: column; gap: 15px;">
                 <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Name</label>
-                    <input type="text" name="staff_name" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
+                    <label for="staff_name" style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Name</label>
+                    <input type="text" id="staff_name" name="staff_name" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;" placeholder="Enter staff name">
                 </div>
                 <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Email</label>
-                    <input type="email" name="staff_email" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
+                    <label for="staff_email" style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Email</label>
+                    <input type="email" id="staff_email" name="staff_email" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;" placeholder="Enter staff email">
                 </div>
                 <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Role</label>
-                    <select name="staff_role" style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
+                    <label for="staff_role" style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Role</label>
+                    <select id="staff_role" name="staff_role" style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;" title="Select staff role">
                         <option value="Admin">Admin</option>
                         <option value="Super Admin">Super Admin</option>
                     </select>
                 </div>
                 <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Join Date</label>
-                    <input type="date" name="join_date" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
+                    <label for="join_date" style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Join Date</label>
+                    <input type="date" id="join_date" name="join_date" value="" required style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;" placeholder="Select join date">
                 </div>
                 <div style="display: flex; align-items: center;">
-                    <label style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Password</label>
-                    <input type="text" name="staff_password" value="@Bcd1234" disabled style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;">
+                    <label for="staff_password" style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Password</label>
+                    <input type="text" id="staff_password" name="staff_password" value="@Bcd1234" disabled style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;" placeholder="Default password">
                 </div>
-                <button type="submit" name="submit_add" value="Add Staff" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">Add Staff</button>
+                <button type="submit" name="submit_add" value="Add Staff" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Submit to add new staff">Add Staff</button>
             </form>
         </div>
     </div>
@@ -507,6 +526,7 @@ if (!$is_ajax) {
         const adminGrid = document.querySelector('.ams-adminGrid');
         const addStaffForm = document.getElementById('addStaffForm');
         const popup = document.getElementById('ams-popup');
+        const errorMessage = document.getElementById('ams-error-message');
 
         let initialBoxes = Array.from(document.querySelectorAll('.ams-adminBox'));
 
@@ -560,35 +580,34 @@ if (!$is_ajax) {
             event.preventDefault();
             if (currentToggleForm) {
                 const formData = new FormData(currentToggleForm);
-                fetch(window.location.href + '?t=' + new Date().getTime(), {
+                fetch(window.location.href, {
                     method: 'POST',
                     body: formData,
-                    timeout: 30000
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}, Text: ${response.statusText}`);
+                        throw new Error(`HTTP error! Status: ${response.status}`);
                     }
-                    return response.text();
+                    return response.json();
                 })
-                .then(text => {
-                    let data;
-                    try {
-                        data = JSON.parse(text);
-                    } catch (e) {
-                        throw new Error('Invalid JSON response: ' + text);
-                    }
+                .then(data => {
                     if (data.success) {
                         const button = currentToggleForm.querySelector('.ams-toggleButton');
-                        button.style.backgroundColor = data.status ? 'rgb(40, 167, 69)' : 'rgb(220, 53, 69)';
+                        button.style.backgroundColor = data.status ? '#28a745' : '#dc3545';
                         button.textContent = data.status ? 'Activate' : 'Deactivate';
                     } else {
-                        alert('Error: ' + (data.error || 'Unknown error occurred') + '\nFull response: ' + (data.full_response || 'No additional details'));
+                        alert('Error: ' + (data.error || 'Unknown error occurred'));
                     }
                     document.getElementById('ams-modal').style.display = 'none';
                     currentToggleForm = null;
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert('Network error: ' + error.message);
+                });
             }
         }
 
@@ -601,6 +620,8 @@ if (!$is_ajax) {
         function openPopup() {
             if (popup) {
                 popup.style.display = 'block';
+                errorMessage.style.display = 'none';
+                errorMessage.textContent = '';
             }
         }
 
@@ -619,53 +640,42 @@ if (!$is_ajax) {
 
         addStaffForm.addEventListener('submit', function(event) {
             event.preventDefault();
-            const timestamp = new Date().getTime();
             const formData = new FormData(this);
-            formData.append('submit_add', 'Add Staff');
-            fetch(`${window.location.href}?t=${timestamp}`, {
+            error_log("Submitting form data: " + JSON.stringify(Object.fromEntries(formData)));
+            
+            fetch(window.location.href, { // Revert to full URL with ?page= parameter
                 method: 'POST',
                 body: formData,
-                timeout: 30000
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}, Text: ${response.statusText}`);
+                    throw new Error(`HTTP error! Status: ${response.status}`);
                 }
-                return response.text();
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Invalid JSON response: ' + text);
+                    }
+                });
             })
-            .then(text => {
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    throw new Error('Invalid JSON response: ' + text);
-                }
+            .then(data => {
                 if (data.success) {
-                    const successDiv = document.createElement('div');
-                    successDiv.className = 'ams-success-message';
-                    successDiv.innerHTML = `<a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a>${data.message}`;
-                    document.querySelector('.ams-mainContainer').insertBefore(successDiv, document.querySelector('.ams-adminGrid'));
-                    setTimeout(() => successDiv.remove(), 3000);
-
-                    closePopup();
                     if (data.refresh) {
                         window.location.reload();
                     }
                 } else {
-                    const errorDiv = document.createElement('div');
-                    errorDiv.style = 'text-align: center; color: #ff0000; margin-bottom: 15px;';
-                    errorDiv.textContent = data.message || 'An error occurred. Please try again.' + (data.error ? '\nDetails: ' + data.error : '') + (data.full_response ? '\nFull response: ' + data.full_response : '');
-                    this.insertBefore(errorDiv, this.firstChild);
-                    setTimeout(() => errorDiv.remove(), 3000);
+                    errorMessage.textContent = data.message || 'An error occurred. Please try again.';
+                    errorMessage.style.display = 'block';
                 }
             })
             .catch(error => {
                 console.error('Fetch error:', error);
-                const errorDiv = document.createElement('div');
-                errorDiv.style = 'text-align: center; color: #ff0000; margin-bottom: 15px;';
-                errorDiv.textContent = 'Network error: ' + error.message;
-                this.insertBefore(errorDiv, this.firstChild);
-                setTimeout(() => errorDiv.remove(), 3000);
+                errorMessage.textContent = 'Network error: ' + error.message;
+                errorMessage.style.display = 'block';
             });
         });
 
@@ -692,5 +702,5 @@ if (!$is_ajax) {
     </body>
     <?php
 }
-mysqli_close($conn);
+ob_end_flush();
 ?>

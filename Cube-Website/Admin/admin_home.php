@@ -20,7 +20,12 @@ if (isset($_SESSION['Staff_ID']) && !isset($_SESSION['role'])) {
 
 // Detect AJAX request
 $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
-if (!$is_ajax && (!isset($_SESSION['Staff_ID']) || (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'))) {
+
+// Log request details
+error_log("Request for " . $_SERVER['REQUEST_URI'] . " - AJAX: " . ($is_ajax ? 'Yes' : 'No') . ", Method: " . $_SERVER['REQUEST_METHOD'] . ", Session Staff_ID: " . (isset($_SESSION['Staff_ID']) ? $_SESSION['Staff_ID'] : 'Not set') . ", Role: " . (isset($_SESSION['role']) ? $_SESSION['role'] : 'Not set'));
+
+// Only redirect for non-AJAX requests if not authorized
+if (!$is_ajax && $_SERVER['REQUEST_METHOD'] === 'GET' && (!isset($_SESSION['Staff_ID']) || (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'))) {
     header("Location: admin_login.php");
     exit();
 }
@@ -29,7 +34,26 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'admin_dashboard.php';
 $valid_pages = ['admin_dashboard.php', 'admin_manage_staff.php', 'admin_cust_page.php', 'admin_cate_page.php', 'admin_prod_page.php', 'admin_color_page.php', 'admin_report_page.php', 'admin_edit_staff.php', 'admin_add_staff.php', 'admin_profile.php'];
 $page = in_array($page, $valid_pages) ? $page : 'admin_dashboard.php';
 
-// Only include the page for non-AJAX requests
+// Define flag to indicate inclusion
+define('INCLUDED_FROM_ADMIN_HOME', true);
+
+// Handle AJAX POST requests
+if ($is_ajax && $_SERVER["REQUEST_METHOD"] == "POST") {
+    error_log("Entering AJAX POST handler for page: " . $page);
+    ob_clean(); // Clear any prior output
+    header('Content-Type: application/json');
+    if (in_array($page, $valid_pages)) {
+        ob_start();
+        include $page;
+        $content = ob_get_clean();
+        echo $content;
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Invalid page request']);
+    }
+    ob_end_flush();
+    exit();
+}
+
 if (!$is_ajax) {
     include 'admin_header.php';
     ?>
@@ -71,28 +95,68 @@ if (!$is_ajax) {
                 box-sizing: border-box;
                 height: calc(100vh - 60px - 40px);
                 margin-top: 60px;
-                overflow-y: hidden;
+                overflow-y: auto;
             }
             .admin-content * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
             }
+            .admin-sidebar a {
+                display: block;
+                padding: 10px;
+                color: #333;
+                text-decoration: none;
+            }
+            .admin-sidebar a.active {
+                background-color: #ddd;
+            }
         </style>
     </head>
     <body>
         <div class="admin-home-container">
             <div class="admin-sidebar">
-                <?php include 'admin_menu.php'; ?>
+                <?php
+                $menu_items = [
+                    'admin_dashboard.php' => 'Dashboard',
+                    'admin_profile.php' => 'My Profile',
+                    'admin_manage_staff.php' => 'Manage Staffs',
+                    'admin_cust_page.php' => 'Manage Customers',
+                    'admin_cate_page.php' => 'Manage Categories',
+                    'admin_prod_page.php' => 'Manage Products',
+                    'admin_color_page.php' => 'Manage Colors',
+                    'admin_report_page.php' => 'Generate Report'
+                ];
+                foreach ($menu_items as $link => $title) {
+                    $active = ($page === $link) ? 'active' : '';
+                    echo "<a href='?page=$link' class='$active'>$title</a>";
+                }
+                ?>
             </div>
             <div class="admin-content">
-                <?php include $page; ?>
+                <?php
+                ob_start();
+                include $page;
+                $content = ob_get_clean();
+                echo $content;
+                ?>
             </div>
         </div>
         <?php include 'admin_footer.php'; ?>
     </body>
     </html>
     <?php
+} else {
+    // Non-POST AJAX requests (e.g., GET) should not reach here; handle gracefully
+    ob_clean();
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    ob_end_flush();
+    exit();
 }
-mysqli_close($conn);
+
+// Close the connection only if it exists and is a valid object
+if (isset($conn) && is_object($conn)) {
+    mysqli_close($conn);
+}
 ?>
