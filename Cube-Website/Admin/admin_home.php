@@ -87,6 +87,7 @@ if (!$is_ajax) {
                 z-index: 1;
                 box-sizing: border-box;
                 overflow-y: auto;
+                margin-top: 20px;
             }
             .admin-content {
                 flex-grow: 1;
