@@ -227,6 +227,9 @@ if (!$is_ajax) {
              justify-items: start;
              grid-auto-flow: row;
              grid-auto-columns: 1fr;
+             box-sizing: border-box;
+             width: 100%;
+             position: relative;
          }
         .ams-container {
             margin-top: 20px;
@@ -245,6 +248,7 @@ if (!$is_ajax) {
             border-radius: 5px;
             height: 430px;
             position: relative;
+            box-sizing: border-box;
         }
         .ams-success-message {
             text-align: center;
@@ -256,11 +260,15 @@ if (!$is_ajax) {
             left: 0;
             width: 100%;
         }
-                 .ams-searchInput {
+         .ams-custom-search {
+             display: inline-block;
+             position: relative;
+         }
+         .ams-searchInput {
              padding: 12px;
              border: 1px solid #ccc;
              border-radius: 5px;
-             width: 800px;
+             width: 180px;
              box-sizing: border-box;
          }
         .ams-filterSelect {
@@ -397,17 +405,20 @@ if (!$is_ajax) {
             left: 50%;
             transform: translate(-50%, -50%);
             background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            width: 400px;
+            padding: 30px;
+            border-radius: 8px;
+            width: 500px;
             text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
         .ams-modal button {
-            padding: 10px 20px;
-            margin: 5px;
+            padding: 12px 30px;
+            margin: 8px;
             border: none;
-            border-radius: 3px;
+            border-radius: 5px;
             cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
         }
         .ams-modal .ams-confirmYes {
             background-color: #28a745;
@@ -445,7 +456,9 @@ if (!$is_ajax) {
     <h2 class="amssubtitle">Manage and monitor all admin and super admin accounts</h2>
     <div class="ams-container">
         <div>
-            <input type="text" id="ams-searchInput" placeholder="Search by name or email" title="Search staff by name or email">
+            <div class="ams-custom-search">
+                <input type="text" id="ams-searchInput" placeholder="Search by name or email" title="Search staff by name or email">
+            </div>
             <select id="ams-filterSelect" class="ams-filterSelect" title="Filter staff by role">
                 <option value="all">All Roles</option>
                 <option value="Admin">Admin</option>
@@ -609,10 +622,22 @@ if (!$is_ajax) {
                  // Show "no results" message while maintaining grid structure
                  const noResultsMsg = adminGrid.querySelector('.no-results-msg');
                  if (!noResultsMsg) {
-                     const msg = document.createElement('p');
+                     const msg = document.createElement('div');
                      msg.className = 'no-results-msg';
-                     msg.style.cssText = 'grid-column: 1 / -1; text-align: center; color: #666; margin: 20px 0; font-size: 16px; font-weight: 500;';
-                     msg.textContent = 'No matching records available';
+                     msg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666; font-size: 16px; font-weight: 500; display: flex; flex-direction: column; justify-content: center; align-items: center;';
+                     
+                     // Create search icon
+                     const searchIcon = document.createElement('img');
+                     searchIcon.src = 'https://cdn-icons-png.flaticon.com/512/3917/3917132.png';
+                     searchIcon.style.cssText = 'width: 40px; height: 40px; margin-bottom: 15px; opacity: 0.6;';
+                     searchIcon.alt = 'Search';
+                     
+                     // Create text
+                     const text = document.createElement('span');
+                     text.textContent = 'No matching records available';
+                     
+                     msg.appendChild(searchIcon);
+                     msg.appendChild(text);
                      adminGrid.appendChild(msg);
                  }
              } else {
