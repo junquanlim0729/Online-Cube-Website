@@ -31,7 +31,7 @@ if (!$is_ajax && $_SERVER['REQUEST_METHOD'] === 'GET' && (!isset($_SESSION['Staf
 }
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'admin_dashboard.php';
-$valid_pages = ['admin_dashboard.php', 'admin_manage_staff.php', 'admin_cust_page.php', 'admin_cate_page.php', 'admin_prod_page.php', 'admin_color_page.php', 'admin_report_page.php', 'admin_edit_staff.php', 'admin_add_staff.php', 'admin_profile.php'];
+$valid_pages = ['admin_dashboard.php', 'admin_manage_staff.php', 'admin_cust_page.php', 'admin_cate_page.php', 'admin_prod_page.php', 'admin_color_page.php', 'admin_report_page.php', 'admin_edit_staff.php', 'admin_add_staff.php', 'admin_profile.php', 'admin_logout.php'];
 $page = in_array($page, $valid_pages) ? $page : 'admin_dashboard.php';
 
 // Define flag to indicate inclusion
@@ -126,7 +126,8 @@ if (!$is_ajax) {
                     'admin_cate_page.php' => 'Manage Categories',
                     'admin_prod_page.php' => 'Manage Products',
                     'admin_color_page.php' => 'Manage Colors',
-                    'admin_report_page.php' => 'Generate Report'
+                    'admin_report_page.php' => 'Generate Report',
+                    'admin_logout.php' => 'Logout'
                 ];
                 foreach ($menu_items as $link => $title) {
                     $active = ($page === $link) ? 'active' : '';

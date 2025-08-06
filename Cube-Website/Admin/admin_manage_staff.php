@@ -142,7 +142,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
                 if (mysqli_stmt_num_rows($check_stmt) > 0) {
                     $response['message'] = "Email already exists.";
                 } else {
-                    $staff_password = password_hash("@Bcd1234", PASSWORD_DEFAULT);
+                    $staff_password = "@Bcd1234"; // Store plain text password
                     $insert_sql = "INSERT INTO Staff (Staff_Name, Staff_Email, Staff_Role, Join_Date, Staff_Password) VALUES (?, ?, ?, ?, ?)";
                     $insert_stmt = mysqli_prepare($conn, $insert_sql);
                     if ($insert_stmt) {
@@ -737,8 +737,7 @@ if (!$is_ajax) {
         document.getElementById('confirmYesBtn').addEventListener('click', confirmYes);
         document.getElementById('confirmNoBtn').addEventListener('click', closeModal);
 
-        // openPopup and closePopup are now global functions
-
+        // Add event listeners for popup management
         popup.addEventListener('click', function(event) {
             if (event.target === popup) {
                 closePopup();
