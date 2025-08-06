@@ -1,61 +1,24 @@
-[05-Aug-2025 14:32:05 Asia/Kuala_Lumpur] PHP Fatal error:  Uncaught Error: mysqli object is already closed in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php:97
-Stack trace:
-#0 C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php(97): mysqli_close(Object(mysqli))
-#1 {main}
-  thrown in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php on line 97
-[05-Aug-2025 14:32:14 Asia/Kuala_Lumpur] PHP Fatal error:  Uncaught Error: mysqli object is already closed in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php:97
-Stack trace:
-#0 C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php(97): mysqli_close(Object(mysqli))
-#1 {main}
-  thrown in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php on line 97
-[05-Aug-2025 14:42:13 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 14:42:13 Asia/Kuala_Lumpur] PHP Fatal error:  Uncaught Error: mysqli object is already closed in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php:97
-Stack trace:
-#0 C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php(97): mysqli_close(Object(mysqli))
-#1 {main}
-  thrown in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php on line 97
-[05-Aug-2025 14:46:11 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 14:46:11 Asia/Kuala_Lumpur] PHP Fatal error:  Uncaught Error: mysqli object is already closed in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php:98
-Stack trace:
-#0 C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php(98): mysqli->ping()
-#1 {main}
-  thrown in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php on line 98
-[05-Aug-2025 14:46:16 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 14:46:16 Asia/Kuala_Lumpur] PHP Fatal error:  Uncaught Error: mysqli object is already closed in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php:98
-Stack trace:
-#0 C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php(98): mysqli->ping()
-#1 {main}
-  thrown in C:\xampp\htdocs\Online-Cube-Website\Cube-Website\Admin\admin_home.php on line 98
-[05-Aug-2025 15:58:29 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 16:10:57 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 16:51:46 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:01:10 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:01:13 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:01:14 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:01:25 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:01:52 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:08:54 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:09:04 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:09:07 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: Yes, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:09:15 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:10:20 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: Yes, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:28:35 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:28:35 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:28:47 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:35:10 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:35:12 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:35:12 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:35:14 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:44:33 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:46:57 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:48:35 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:48:55 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:50:15 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:51:15 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:51:25 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:51:26 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:51:26 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:51:44 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:51:45 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:52:41 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
-[05-Aug-2025 17:52:45 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
+# Error log cleared for testing - Fixed submit_add field issue
+[06-Aug-2025 09:56:26 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
+[06-Aug-2025 09:56:30 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: Yes, Session Staff_ID: 1, Role: admin
+[06-Aug-2025 09:56:30 Asia/Kuala_Lumpur] === ADD STAFF AJAX HANDLER STARTED ===
+[06-Aug-2025 09:56:30 Asia/Kuala_Lumpur] Request URI: /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php
+[06-Aug-2025 09:56:30 Asia/Kuala_Lumpur] HTTP_X_REQUESTED_WITH: XMLHttpRequest
+[06-Aug-2025 09:56:30 Asia/Kuala_Lumpur] POST data: Array
+(
+    [staff_name] => Nana
+    [staff_email] => nana@gmail.com
+    [staff_role] => Admin
+    [join_date] => 2025-08-05
+    [submit_add] => Add Staff
+)
+
+[06-Aug-2025 09:56:30 Asia/Kuala_Lumpur] Session data: Array
+(
+    [Staff_ID] => 1
+    [role] => admin
+)
+
+[06-Aug-2025 09:56:30 Asia/Kuala_Lumpur] All POST keys: staff_name, staff_email, staff_role, join_date, submit_add
+[06-Aug-2025 09:56:32 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin
+[06-Aug-2025 09:58:32 Asia/Kuala_Lumpur] Request for /Online-Cube-Website/Cube-Website/Admin/admin_home.php?page=admin_manage_staff.php - AJAX: No, Session Staff_ID: 1, Role: admin

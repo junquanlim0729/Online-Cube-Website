@@ -10,23 +10,32 @@ if (session_status() === PHP_SESSION_NONE) {
 // Disable output buffering and set error handling
 ob_start();
 ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', 'php_errors.log');
+ini_set('log_errors', 0);
 ini_set('default_socket_timeout', 30);
 
 // Debug log to confirm request type and session
 $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
-error_log("Request for " . $_SERVER['REQUEST_URI'] . " - AJAX: " . ($is_ajax ? 'Yes' : 'No') . ", Session Staff_ID: " . (isset($_SESSION['Staff_ID']) ? $_SESSION['Staff_ID'] : 'Not set') . ", Role: " . (isset($_SESSION['role']) ? $_SESSION['role'] : 'Not set'));
 
 // Connection retry mechanism
 function getConnection($attempt = 0) {
     global $conn;
     $max_attempts = 3;
     if ($attempt >= $max_attempts) {
-        error_log("Connection failed after $max_attempts attempts: " . mysqli_connect_error());
         ob_end_clean();
         die(json_encode(['success' => false, 'error' => 'Database connection failed']));
     }
+    
+    // Check if connection already exists and is valid
+    if (isset($conn) && is_object($conn)) {
+        try {
+            if ($conn->ping()) {
+                return $conn;
+            }
+        } catch (Exception $e) {
+            // Connection ping failed
+        }
+    }
+    
     $conn = mysqli_connect("localhost", "root", "", "Cube");
     if (!$conn) {
         sleep(2);
@@ -35,7 +44,10 @@ function getConnection($attempt = 0) {
     return $conn;
 }
 
-$conn = getConnection();
+// Only create new connection if not already set
+if (!isset($conn) || !is_object($conn)) {
+    $conn = getConnection();
+}
 
 // Session check only for non-AJAX
 if (!$is_ajax && (!isset($_SESSION['Staff_ID']) || (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'))) {
@@ -59,7 +71,6 @@ if (!$is_ajax) {
     $result = mysqli_query($conn, $sql);
     if (!$result) {
         $staff_list = [];
-        error_log("Query failed: " . mysqli_error($conn));
     } else {
         $staff_list = mysqli_fetch_all($result, MYSQLI_ASSOC);
         mysqli_free_result($result);
@@ -68,10 +79,11 @@ if (!$is_ajax) {
 
 // Handle status toggle
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] === 'toggle_status') {
-    ob_clean();
+    // Clear any output and set headers
+    if (ob_get_level()) ob_end_clean();
     header('Content-Type: application/json');
+    
     $staff_id = intval($_POST['staff_id']);
-    error_log("Toggle status for staff_id: $staff_id");
     $sql = "SELECT Staff_Status FROM Staff WHERE Staff_ID = ?";
     $stmt = mysqli_prepare($conn, $sql);
     if ($stmt) {
@@ -91,28 +103,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
                 if ($success) {
                     echo json_encode(['success' => true, 'status' => $new_status]);
-                    ob_end_flush();
                     exit();
                 } else {
                     $error = mysqli_error($conn);
-                    error_log("Update failed for staff_id $staff_id: $error");
                     echo json_encode(['success' => false, 'error' => "Update failed: $error"]);
-                    ob_end_flush();
                     exit();
                 }
             }
         }
     }
     echo json_encode(['success' => false, 'error' => 'Database operation failed']);
-    ob_end_flush();
     exit();
 }
 
 // Handle add staff submission via AJAX
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
-    ob_clean();
+    // Clear any output and set headers
+    if (ob_get_level()) ob_end_clean();
     header('Content-Type: application/json');
-    error_log("Add staff attempt - POST data: " . print_r($_POST, true));
 
     $response = ['success' => false, 'message' => ''];
     $staff_name = trim($_POST['staff_name'] ?? '');
@@ -157,14 +165,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
                             ];
                         } else {
                             $error = mysqli_error($conn);
-                            error_log("Insert failed: $error");
                             $response['message'] = "Failed to add staff. Error: $error";
                             $response['error'] = $error;
                         }
                         mysqli_stmt_close($insert_stmt);
                     } else {
                         $error = mysqli_error($conn);
-                        error_log("Prepare failed: $error");
                         $response['message'] = "Prepare failed. Error: $error";
                         $response['error'] = $error;
                     }
@@ -172,20 +178,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_add'])) {
                 mysqli_stmt_close($check_stmt);
             } else {
                 $error = mysqli_error($conn);
-                error_log("Execute failed: $error");
                 $response['message'] = "Execute failed. Error: $error";
                 $response['error'] = $error;
             }
         } else {
             $error = mysqli_error($conn);
-            error_log("Prepare failed: $error");
             $response['message'] = "Prepare failed. Error: $error";
             $response['error'] = $error;
         }
     }
     
     echo json_encode($response);
-    ob_end_flush();
+    exit();
+}
+
+// Fallback handler for any other AJAX POST requests
+if ($_SERVER["REQUEST_METHOD"] == "POST" && $is_ajax) {
+    // Clear any output and set headers
+    if (ob_get_level()) ob_end_clean();
+    header('Content-Type: application/json');
+    
+    echo json_encode(['success' => false, 'message' => 'No specific handler found for this request']);
     exit();
 }
 
@@ -203,14 +216,18 @@ if (!$is_ajax) {
             background-color: white;
             position: relative;
         }
-        .ams-adminGrid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            padding: 20px;
-            background-color: transparent;
-            min-height: 300px;
-        }
+                 .ams-adminGrid {
+             display: grid;
+             grid-template-columns: repeat(4, 1fr);
+             gap: 20px;
+             padding: 20px;
+             background-color: transparent;
+             min-height: 300px;
+             align-items: start;
+             justify-items: start;
+             grid-auto-flow: row;
+             grid-auto-columns: 1fr;
+         }
         .ams-container {
             margin-top: 20px;
             margin-bottom: 20px;
@@ -239,13 +256,13 @@ if (!$is_ajax) {
             left: 0;
             width: 100%;
         }
-        .ams-searchInput {
-            padding: 25px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 600px;
-            box-sizing: border-box;
-        }
+                 .ams-searchInput {
+             padding: 12px;
+             border: 1px solid #ccc;
+             border-radius: 5px;
+             width: 800px;
+             box-sizing: border-box;
+         }
         .ams-filterSelect {
             padding: 12px;
             border: 1px solid #ccc;
@@ -263,20 +280,23 @@ if (!$is_ajax) {
             margin-left: auto;
             border: 2px solid #004d99;
         }
-        .ams-adminBox {
-            border: 1px solid #ccc;
-            border-color: #005b6fff;
-            border-radius: 5px;
-            padding: 15px;
-            text-align: center;
-            line-height: 25px;
-            min-height: 300px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background-color: white;
-        }
+                 .ams-adminBox {
+             border: 1px solid #ccc;
+             border-color: #005b6fff;
+             border-radius: 5px;
+             padding: 15px;
+             text-align: center;
+             line-height: 25px;
+             min-height: 300px;
+             box-sizing: border-box;
+             display: flex;
+             flex-direction: column;
+             justify-content: space-between;
+             background-color: white;
+             width: 100%;
+             max-width: 100%;
+             position: relative;
+         }
         .ams-adminBox div:first-child div {
             width: 150px;
             height: 150px;
@@ -342,7 +362,6 @@ if (!$is_ajax) {
             border-radius: 5px;
             cursor: pointer;
             width: 100%;
-            border: 2px solid #b30000;
         }
         .ams-toggleButton[form] {
             background: #28a745;
@@ -436,10 +455,15 @@ if (!$is_ajax) {
         <a href="#" class="ams-addStaffLink" onclick="openPopup(); return false;" title="Add new staff member">Add Staff</a>
     </div>
 
-    <div class="ams-mainContainer">
-        <?php if (isset($success_message)): ?>
-            <div class="ams-success-message"><a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a><?php echo $success_message; ?></div>
-        <?php endif; ?>
+         <div id="ams-status-message" style="display: none; text-align: left; color: #28a745; font-weight: bold; margin: 10px 0; padding: 10px; border-radius: 5px; background-color: #f8f9fa; border: 1px solid #d4edda;">
+         <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Success" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
+         <span id="ams-status-text"></span>
+     </div>
+     <div class="ams-mainContainer">
+         <?php if (isset($success_message)): ?>
+             <div class="ams-success-message"><a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a><?php echo $success_message; ?></div>
+         <?php endif; ?>
+         <div id="ams-notification" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; z-index: 9999; color: white;"></div>
         <div class="ams-adminGrid">
             <?php if (empty($staff_list)): ?>
                 <p>No Admins or Super Admins found.</p>
@@ -481,8 +505,8 @@ if (!$is_ajax) {
     <div id="ams-modal" class="ams-modal">
         <div class="ams-modal-content">
             <p>Are you sure you want to <strong id="ams-actionText"></strong> this staff?</p>
-            <button class="ams-confirmYes" onclick="confirmYes(event)" title="Confirm action">Yes</button>
-            <button class="ams-confirmNo" onclick="closeModal(event)" title="Cancel action">No</button>
+            <button class="ams-confirmYes" id="confirmYesBtn" title="Confirm action">Yes</button>
+            <button class="ams-confirmNo" id="confirmNoBtn" title="Cancel action">No</button>
         </div>
     </div>
 
@@ -514,12 +538,39 @@ if (!$is_ajax) {
                     <label for="staff_password" style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Password</label>
                     <input type="text" id="staff_password" name="staff_password" value="@Bcd1234" disabled style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;" placeholder="Default password">
                 </div>
-                <button type="submit" name="submit_add" value="Add Staff" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Submit to add new staff">Add Staff</button>
+                                 <button type="submit" name="submit_add" value="Add Staff" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Submit to add new staff">Add Staff</button>
             </form>
+            <div style="text-align: center; margin-top: 15px;">
+                <button type="button" onclick="closePopup()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Cancel</button>
+            </div>
         </div>
     </div>
 
     <script>
+    // Global functions for popup management
+    function openPopup() {
+        const popup = document.getElementById('ams-popup');
+        const errorMessage = document.getElementById('ams-error-message');
+        if (popup) {
+            popup.style.display = 'block';
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+                errorMessage.textContent = '';
+            }
+        }
+    }
+
+    function closePopup() {
+        const popup = document.getElementById('ams-popup');
+        const addStaffForm = document.getElementById('addStaffForm');
+        if (popup) {
+            popup.style.display = 'none';
+            if (addStaffForm) {
+                addStaffForm.reset();
+            }
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('ams-searchInput');
         const filterSelect = document.getElementById('ams-filterSelect');
@@ -530,31 +581,48 @@ if (!$is_ajax) {
 
         let initialBoxes = Array.from(document.querySelectorAll('.ams-adminBox'));
 
-        function filterAndSearch() {
-            const searchTerm = searchInput.value.toLowerCase().trim();
-            const filterRole = filterSelect.value.toLowerCase();
-            adminGrid.innerHTML = '';
+                 function filterAndSearch() {
+             const searchTerm = searchInput.value.toLowerCase().trim();
+             const filterRole = filterSelect.value.toLowerCase();
+             
+             // Get all current boxes in the grid
+             const currentBoxes = Array.from(adminGrid.querySelectorAll('.ams-adminBox'));
+             
+             currentBoxes.forEach(box => {
+                 const name = box.getAttribute('data-name');
+                 const email = box.getAttribute('data-email');
+                 const role = box.getAttribute('data-role');
+                 const matchesSearch = searchTerm === '' || name.includes(searchTerm) || email.includes(searchTerm);
+                 const matchesFilter = filterRole === 'all' || role === filterRole;
 
-            let found = false;
-            initialBoxes.forEach(box => {
-                const name = box.getAttribute('data-name');
-                const email = box.getAttribute('data-email');
-                const role = box.getAttribute('data-role');
-                const matchesSearch = searchTerm === '' || name.includes(searchTerm) || email.includes(searchTerm);
-                const matchesFilter = filterRole === 'all' || role === filterRole;
-
-                if (matchesSearch && matchesFilter) {
-                    adminGrid.appendChild(box.cloneNode(true));
-                    found = true;
-                }
-            });
-
-            if (!found && searchTerm !== '') {
-                adminGrid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: #666;">No matching records available</p>';
-            } else if (!found) {
-                initialBoxes.forEach(box => adminGrid.appendChild(box.cloneNode(true)));
-            }
-        }
+                 if (matchesSearch && matchesFilter) {
+                     box.style.display = 'block';
+                 } else {
+                     box.style.display = 'none';
+                 }
+             });
+             
+             // Check if any boxes are visible
+             const visibleBoxes = currentBoxes.filter(box => box.style.display !== 'none');
+             
+             if (visibleBoxes.length === 0 && (searchTerm !== '' || filterRole !== 'all')) {
+                 // Show "no results" message while maintaining grid structure
+                 const noResultsMsg = adminGrid.querySelector('.no-results-msg');
+                 if (!noResultsMsg) {
+                     const msg = document.createElement('p');
+                     msg.className = 'no-results-msg';
+                     msg.style.cssText = 'grid-column: 1 / -1; text-align: center; color: #666; margin: 20px 0; font-size: 16px; font-weight: 500;';
+                     msg.textContent = 'No matching records available';
+                     adminGrid.appendChild(msg);
+                 }
+             } else {
+                 // Remove "no results" message if it exists
+                 const noResultsMsg = adminGrid.querySelector('.no-results-msg');
+                 if (noResultsMsg) {
+                     noResultsMsg.remove();
+                 }
+             }
+         }
 
         function debounce(func, wait) {
             let timeout;
@@ -580,7 +648,12 @@ if (!$is_ajax) {
             event.preventDefault();
             if (currentToggleForm) {
                 const formData = new FormData(currentToggleForm);
-                fetch(window.location.href, {
+                
+                // Fix: Use the correct URL for AJAX requests
+                const currentUrl = window.location.href.split('?')[0];
+                const ajaxUrl = currentUrl + '?page=admin_manage_staff.php';
+                
+                fetch(ajaxUrl, {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -593,20 +666,38 @@ if (!$is_ajax) {
                     }
                     return response.json();
                 })
-                .then(data => {
-                    if (data.success) {
-                        const button = currentToggleForm.querySelector('.ams-toggleButton');
-                        button.style.backgroundColor = data.status ? '#28a745' : '#dc3545';
-                        button.textContent = data.status ? 'Activate' : 'Deactivate';
-                    } else {
-                        alert('Error: ' + (data.error || 'Unknown error occurred'));
-                    }
+                                 .then(data => {
+                     if (data.success) {
+                         // Show success message above mainContainer
+                         const statusMessage = document.getElementById('ams-status-message');
+                         const statusText = document.getElementById('ams-status-text');
+                         statusText.textContent = 'Status updated successfully!';
+                         statusMessage.style.display = 'block';
+                         setTimeout(() => {
+                             statusMessage.style.display = 'none';
+                             window.location.reload();
+                         }, 2000);
+                     } else {
+                         // Show error message
+                         const errorMsg = document.createElement('div');
+                         errorMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #dc3545; color: white; padding: 15px; border-radius: 5px; z-index: 9999;';
+                         errorMsg.textContent = 'Error: ' + (data.error || 'Unknown error occurred');
+                         document.body.appendChild(errorMsg);
+                         setTimeout(() => document.body.removeChild(errorMsg), 3000);
+                     }
                     document.getElementById('ams-modal').style.display = 'none';
                     currentToggleForm = null;
                 })
                 .catch(error => {
                     console.error('Fetch error:', error);
-                    alert('Network error: ' + error.message);
+                    // Show error message
+                    const errorMsg = document.createElement('div');
+                    errorMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #dc3545; color: white; padding: 15px; border-radius: 5px; z-index: 9999;';
+                    errorMsg.textContent = 'Network error: ' + error.message;
+                    document.body.appendChild(errorMsg);
+                    setTimeout(() => document.body.removeChild(errorMsg), 3000);
+                    document.getElementById('ams-modal').style.display = 'none';
+                    currentToggleForm = null;
                 });
             }
         }
@@ -617,20 +708,11 @@ if (!$is_ajax) {
             currentToggleForm = null;
         }
 
-        function openPopup() {
-            if (popup) {
-                popup.style.display = 'block';
-                errorMessage.style.display = 'none';
-                errorMessage.textContent = '';
-            }
-        }
+        // Add event listeners for confirmation buttons
+        document.getElementById('confirmYesBtn').addEventListener('click', confirmYes);
+        document.getElementById('confirmNoBtn').addEventListener('click', closeModal);
 
-        function closePopup() {
-            if (popup) {
-                popup.style.display = 'none';
-                addStaffForm.reset();
-            }
-        }
+        // openPopup and closePopup are now global functions
 
         popup.addEventListener('click', function(event) {
             if (event.target === popup) {
@@ -638,56 +720,83 @@ if (!$is_ajax) {
             }
         });
 
-        addStaffForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const formData = new FormData(this);
-            error_log("Submitting form data: " + JSON.stringify(Object.fromEntries(formData)));
-            
-            fetch(window.location.href, { // Revert to full URL with ?page= parameter
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.text().then(text => {
-                    try {
-                        return JSON.parse(text);
-                    } catch (e) {
-                        throw new Error('Invalid JSON response: ' + text);
-                    }
-                });
-            })
-            .then(data => {
-                if (data.success) {
-                    if (data.refresh) {
-                        window.location.reload();
-                    }
-                } else {
-                    errorMessage.textContent = data.message || 'An error occurred. Please try again.';
-                    errorMessage.style.display = 'block';
-                }
-            })
+                 addStaffForm.addEventListener('submit', function(event) {
+             event.preventDefault();
+             const formData = new FormData(this);
+             
+             // Explicitly add the submit_add field
+             formData.append('submit_add', 'Add Staff');
+             
+             // Debug: Log the form data
+             console.log('Submitting form data:', Object.fromEntries(formData));
+             
+             // Clear any previous error messages
+             errorMessage.style.display = 'none';
+             errorMessage.textContent = '';
+             
+             // Use the current URL directly since we're already on the correct page
+             fetch(window.location.href, {
+                 method: 'POST',
+                 body: formData,
+                 headers: {
+                     'X-Requested-With': 'XMLHttpRequest'
+                 }
+             })
+                         .then(response => {
+                 console.log('Response status:', response.status);
+                 console.log('Response headers:', response.headers);
+                 
+                 if (!response.ok) {
+                     throw new Error(`HTTP error! Status: ${response.status}`);
+                 }
+                 return response.text().then(text => {
+                     console.log('Raw response text:', text);
+                     try {
+                         return JSON.parse(text);
+                     } catch (e) {
+                         console.error('Response text:', text);
+                         throw new Error('Invalid JSON response: ' + text);
+                     }
+                 });
+             })
+                         .then(data => {
+                 if (data.success) {
+                     // Show success message above mainContainer
+                     const statusMessage = document.getElementById('ams-status-message');
+                     const statusText = document.getElementById('ams-status-text');
+                     statusText.textContent = 'Staff added successfully!';
+                     statusMessage.style.display = 'block';
+                     closePopup(); // Close the popup
+                     setTimeout(() => {
+                         statusMessage.style.display = 'none';
+                         window.location.reload();
+                     }, 2000);
+                 } else {
+                     errorMessage.textContent = data.message || 'An error occurred. Please try again.';
+                     errorMessage.style.display = 'block';
+                 }
+             })
             .catch(error => {
                 console.error('Fetch error:', error);
-                errorMessage.textContent = 'Network error: ' + error.message;
+                if (error.message.includes('Method not allowed')) {
+                    errorMessage.textContent = 'Server error: Please try again. If the problem persists, refresh the page.';
+                } else {
+                    errorMessage.textContent = 'Network error: ' + error.message;
+                }
                 errorMessage.style.display = 'block';
             });
         });
 
-        document.querySelectorAll('.ams-toggleButton').forEach(button => {
-            button.addEventListener('click', function(event) {
-                const form = this.closest('form');
+        // Use event delegation for toggle buttons since they're dynamically created
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('ams-toggleButton')) {
+                const form = event.target.closest('form');
                 if (form) {
                     const staffId = form.querySelector('input[name="staff_id"]').value;
-                    const isActive = this.style.backgroundColor === 'rgb(40, 167, 69)';
+                    const isActive = event.target.style.backgroundColor === 'rgb(40, 167, 69)';
                     confirmToggle(event, staffId, !isActive);
                 }
-            });
+            }
         });
 
         const addStaffButton = document.querySelector('.ams-addStaffLink');

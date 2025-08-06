@@ -40,18 +40,18 @@ define('INCLUDED_FROM_ADMIN_HOME', true);
 // Handle AJAX POST requests
 if ($is_ajax && $_SERVER["REQUEST_METHOD"] == "POST") {
     error_log("Entering AJAX POST handler for page: " . $page);
-    ob_clean(); // Clear any prior output
-    header('Content-Type: application/json');
+    error_log("POST data received: " . print_r($_POST, true));
+    
     if (in_array($page, $valid_pages)) {
-        ob_start();
+        // Include the page file which will handle the AJAX request
         include $page;
-        $content = ob_get_clean();
-        echo $content;
     } else {
+        ob_clean();
+        header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => 'Invalid page request']);
+        ob_end_flush();
+        exit();
     }
-    ob_end_flush();
-    exit();
 }
 
 if (!$is_ajax) {
@@ -147,7 +147,7 @@ if (!$is_ajax) {
     </body>
     </html>
     <?php
-} else {
+} else if ($is_ajax && $_SERVER["REQUEST_METHOD"] != "POST") {
     // Non-POST AJAX requests (e.g., GET) should not reach here; handle gracefully
     ob_clean();
     header('Content-Type: application/json');
@@ -157,7 +157,8 @@ if (!$is_ajax) {
 }
 
 // Close the connection only if it exists and is a valid object
-if (isset($conn) && is_object($conn)) {
-    mysqli_close($conn);
-}
+// Don't close connection here as it might be used by included files
+// if (isset($conn) && is_object($conn)) {
+//     mysqli_close($conn);
+// }
 ?>
