@@ -53,11 +53,20 @@ if ($staff_id > 0) {
     $staff_data = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt);
 
+    // Debug: Log staff data for troubleshooting
+    if (!$staff_data) {
+        error_log("Staff data not found for staff_id: $staff_id");
+    } else {
+        error_log("Staff data loaded successfully for staff_id: $staff_id, has password: " . (!empty($staff_data['Staff_Password']) ? 'yes' : 'no'));
+    }
+
     // Sync state with database
     if ($staff_data) {
         $state_data[$staff_id] = $staff_data['Profile_Image'] ?: $default_image;
         file_put_contents($state_file, json_encode($state_data, JSON_PRETTY_PRINT));
     }
+} else {
+    error_log("Invalid staff_id: $staff_id");
 }
 
 // Handle profile image upload
@@ -152,10 +161,15 @@ if (isset($_POST['remove_image'])) {
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_password'])) {
     $verify_password = $_POST['verify_password'];
     
-    if (password_verify($verify_password, $staff_data['Staff_Password'])) {
-        $messages[] = "verification_success";
+    // Debug: Check if staff_data exists and has password
+    if (!$staff_data || empty($staff_data['Staff_Password'])) {
+        $messages[] = "Error: Staff data not found or password is empty.";
     } else {
-        $messages[] = "Current password is incorrect.";
+        if (password_verify($verify_password, $staff_data['Staff_Password'])) {
+            $messages[] = "verification_success";
+        } else {
+            $messages[] = "Current password is incorrect.";
+        }
     }
 }
 
@@ -204,13 +218,13 @@ mysqli_close($conn);
 </head>
 <body>
 <!-- Top Section for Title and Messages -->
-<div style="background: #f8f9fa; border-bottom: 2px solid #dee2e6; padding: 20px; margin-bottom: 20px;">
+<div style="border-bottom: 2px solid #dee2e6; padding: 20px; margin-bottom: 20px;">
     <h1 style="margin: 0; color: #333; font-size: 28px; font-weight: bold;">My Profile</h1>
-    <div id="topMessageDiv" style="margin-top: 10px; display: none;"></div>
 </div>
+<div id="topMessageDiv" style="margin: 0 20px 20px 20px; display: none; position: relative;"></div>
 
-<div style="margin-top: 20px; margin-bottom: 20px; max-height: calc(100% - 120px); overflow-y: auto; position: relative;">
-    <div style="display: flex; height: calc(100% - 40px);">
+<div style="margin-top: 20px; margin-bottom: 20px; position: relative;">
+    <div style="display: flex;">
         <!-- Left Section - Image Management -->
         <div style="flex: 1; text-align: center; min-width: 150px; padding: 20px; box-sizing: border-box; border-right: 2px solid #ccc;">
             <?php if ($staff_data): ?>
@@ -250,7 +264,7 @@ mysqli_close($conn);
                 </div>
 
                 <!-- Password Change Section -->
-                <div id="passwordChangeSection" style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #dee2e6;">
+                <div id="passwordChangeSection" style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #dee2e6; max-height: 400px; overflow-y: auto;">
                     <h3 style="margin-bottom: 20px; color: #333;">Change Password</h3>
                     
                     <!-- Password Verification Form (Default) -->
@@ -327,8 +341,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         topMessageDiv.textContent = message;
         topMessageDiv.style.cssText = isSuccess ? 
-            'color: #28a745; font-weight: bold; font-size: 16px; padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; transition: all 0.5s ease; position: absolute; width: 100%; box-sizing: border-box;' :
-            'color: #dc3545; font-weight: bold; font-size: 16px; padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; transition: all 0.5s ease; position: absolute; width: 100%; box-sizing: border-box;';
+            'color: #28a745; font-weight: bold; font-size: 16px; padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; transition: all 0.5s ease; width: 100%; box-sizing: border-box;' :
+            'color: #dc3545; font-weight: bold; font-size: 16px; padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; transition: all 0.5s ease; width: 100%; box-sizing: border-box;';
         
         // Show message with slide up animation
         topMessageDiv.style.display = 'block';
@@ -520,6 +534,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Real-time validation for confirm password
+    confirmPasswordInput.addEventListener('input', function() {
+        const newPasswordValue = newPasswordInput.value;
+        const confirmPasswordValue = this.value;
+        if (newPasswordValue !== confirmPasswordValue && confirmPasswordValue !== '') {
+            confirmPasswordError.textContent = 'New passwords do not match.';
+            confirmPasswordError.style.display = 'block';
+        } else {
+            confirmPasswordError.style.display = 'none';
+        }
+    });
+
     // Handle password verification and change forms
     const passwordVerifyForm = document.getElementById('passwordVerifyForm');
     const passwordForm = document.getElementById('passwordForm');
@@ -574,6 +600,17 @@ document.addEventListener('DOMContentLoaded', function() {
     passwordForm.addEventListener('submit', function(e) {
         e.preventDefault();
         clearPasswordErrors();
+        
+        // Client-side validation first
+        const newPasswordValue = newPasswordInput.value;
+        const confirmPasswordValue = confirmPasswordInput.value;
+        
+        if (newPasswordValue !== confirmPasswordValue) {
+            confirmPasswordError.textContent = 'New passwords do not match.';
+            confirmPasswordError.style.display = 'block';
+            return;
+        }
+        
         const formData = new FormData(this);
 
         fetch('', {
