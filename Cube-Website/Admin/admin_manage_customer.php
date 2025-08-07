@@ -69,29 +69,31 @@ if (file_exists($state_file)) {
     $state_data = json_decode($state_content, true) ?: [];
 }
 
-// Base query to fetch all customers with default address
-if (!$is_ajax) {
-    $sql = "SELECT c.Cust_ID, c.Cust_First_Name, c.Cust_Last_Name, c.Cust_Email, c.Cust_Phone, c.Profile_Image, c.Cust_Status, 
-            a.Add_Line, a.City, a.State, a.Postcode 
-            FROM Customer c 
-            LEFT JOIN Address a ON c.Cust_ID = a.Cust_ID AND a.Add_Default = TRUE 
-            ORDER BY c.Cust_ID ASC";
-    $result = mysqli_query($conn, $sql);
-    if (!$result) {
-        $customer_list = [];
-    } else {
-        $customer_list = mysqli_fetch_all($result, MYSQLI_ASSOC);
-        mysqli_free_result($result);
-        
-        // Assign Customer IDs starting from 2001
-        $base_id = 2001;
-        foreach ($customer_list as &$customer) {
-            $customer['Customer_ID'] = $base_id++;
-            $customer['Default_Address'] = $customer['Add_Line'] . ', ' . $customer['City'] . ', ' . $customer['State'] . ', ' . $customer['Postcode'];
-            unset($customer['Add_Line'], $customer['City'], $customer['State'], $customer['Postcode']);
-        }
-        unset($customer); // Unset reference
+// Handle sorting
+$sort_column = isset($_GET['sort']) ? $_GET['sort'] : 'Cust_ID';
+$sort_order = isset($_GET['order']) && $_GET['order'] === 'desc' ? 'DESC' : 'ASC';
+$next_order = $sort_order === 'ASC' ? 'DESC' : 'ASC';
+
+$sql = "SELECT c.Cust_ID, c.Cust_First_Name, c.Cust_Last_Name, c.Cust_Email, c.Cust_Phone, c.Profile_Image, c.Cust_Status, 
+        a.Add_Line, a.City, a.State, a.Postcode 
+        FROM Customer c 
+        LEFT JOIN Address a ON c.Cust_ID = a.Cust_ID AND a.Add_Default = TRUE 
+        ORDER BY c.$sort_column $sort_order";
+$result = mysqli_query($conn, $sql);
+if (!$result) {
+    $customer_list = [];
+} else {
+    $customer_list = mysqli_fetch_all($result, MYSQLI_ASSOC);
+    mysqli_free_result($result);
+    
+    // Assign Customer IDs starting from 2001
+    $base_id = 2001;
+    foreach ($customer_list as &$customer) {
+        $customer['Customer_ID'] = $base_id++;
+        $customer['Default_Address'] = $customer['Add_Line'] . ', ' . $customer['City'] . ', ' . $customer['State'] . ', ' . $customer['Postcode'];
+        unset($customer['Add_Line'], $customer['City'], $customer['State'], $customer['Postcode']);
     }
+    unset($customer); // Unset reference
 }
 
 // Handle status toggle
@@ -216,6 +218,25 @@ if (!$is_ajax) {
             text-align: center;
             vertical-align: middle;
             padding: 0 4px;
+            position: relative;
+        }
+        .amc-labels .sortable {
+            cursor: pointer;
+        }
+        .amc-labels .sortable:after {
+            content: ' ↕';
+            margin-left: 5px;
+            font-size: 12px;
+        }
+        .amc-labels .asc:after {
+            content: ' ↑';
+            margin-left: 5px;
+            font-size: 12px;
+        }
+        .amc-labels .desc:after {
+            content: ' ↓';
+            margin-left: 5px;
+            font-size: 12px;
         }
         .amc-customerContainer {
             width: 100%;
@@ -430,11 +451,19 @@ if (!$is_ajax) {
     <div class="amc-mainContainer">
         <div id="amc-notification" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; z-index: 9999; color: white;"></div>
         <div class="amc-labels">
-            <div class="amc-id">ID</div>
+            <div class="amc-id sortable <?php echo $sort_column === 'Cust_ID' ? $sort_order : ''; ?>" onclick="sortTable('Cust_ID')">
+                ID
+            </div>
             <div class="amc-image">Image</div>
-            <div class="amc-fname">First Name</div>
-            <div class="amc-lname">Last Name</div>
-            <div class="amc-email">Email</div>
+            <div class="amc-fname sortable <?php echo $sort_column === 'Cust_First_Name' ? $sort_order : ''; ?>" onclick="sortTable('Cust_First_Name')">
+                First Name
+            </div>
+            <div class="amc-lname sortable <?php echo $sort_column === 'Cust_Last_Name' ? $sort_order : ''; ?>" onclick="sortTable('Cust_Last_Name')">
+                Last Name
+            </div>
+            <div class="amc-email sortable <?php echo $sort_column === 'Cust_Email' ? $sort_order : ''; ?>" onclick="sortTable('Cust_Email')">
+                Email
+            </div>
             <div class="amc-action">Action</div>
         </div>
         <div class="amc-customerContainer">
@@ -615,24 +644,24 @@ if (!$is_ajax) {
                         <div style="display: flex; gap: 10px;">
                             <div style="flex: 1;">
                                 <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">First Name</label>
-                                <input type="text" value="${fname}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                                <input type="text" value="${fname}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px; padding: 12px">
                             </div>
                             <div style="flex: 1;">
                                 <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Last Name</label>
-                                <input type="text" value="${lname}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                                <input type="text" value="${lname}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px; padding: 12px">
                             </div>
                         </div>
                         <div>
                             <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Email</label>
-                            <input type="text" value="${email}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                            <input type="text" value="${email}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px; padding: 12px">
                         </div>
                         <div>
                             <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Phone No</label>
-                            <input type="text" value="${phone}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                            <input type="text" value="${phone}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px; padding: 12px">
                         </div>
                         <div>
                             <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Address</label>
-                            <input type="text" value="${address}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                            <input type="text" value="${address}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px; padding: 12px">
                         </div>
                     </div>
                 </div>
@@ -663,6 +692,11 @@ if (!$is_ajax) {
                 }
             }
         });
+
+        function sortTable(column) {
+            const order = '<?php echo $sort_column === column ? $next_order : 'ASC'; ?>';
+            window.location.href = `?sort=${column}&order=${order}`;
+        }
     });
     </script>
     </body>
