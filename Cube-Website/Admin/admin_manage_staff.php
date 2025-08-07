@@ -624,7 +624,7 @@ if (!$is_ajax) {
                  if (!noResultsMsg) {
                      const msg = document.createElement('div');
                      msg.className = 'no-results-msg';
-                     msg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666; font-size: 16px; font-weight: 500; display: flex; flex-direction: column; justify-content: center; align-items: center;';
+                     msg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666; font-size: 20px; font-weight: 500; display: flex; flex-direction: column; justify-content: center; align-items: center;';
                      
                      // Create search icon
                      const searchIcon = document.createElement('img');

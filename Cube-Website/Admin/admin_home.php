@@ -112,6 +112,45 @@ if (!$is_ajax) {
             .admin-sidebar a.active {
                 background-color: #ddd;
             }
+            .logout-modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+            .logout-modal-content {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: white;
+                padding: 20px;
+                border-radius: 5px;
+                width: 400px;
+                text-align: center;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            }
+            .logout-modal-content button {
+                padding: 10px 20px;
+                margin: 5px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            .logout-modal-content .confirm-yes {
+                background-color: #28a745;
+                color: white;
+            }
+            .logout-modal-content .confirm-no {
+                background-color: #dc3545;
+                color: white;
+            }
         </style>
     </head>
     <body>
@@ -131,7 +170,11 @@ if (!$is_ajax) {
                 ];
                 foreach ($menu_items as $link => $title) {
                     $active = ($page === $link) ? 'active' : '';
-                    echo "<a href='?page=$link' class='$active'>$title</a>";
+                    if ($link === 'admin_logout.php') {
+                        echo "<a href='#' class='$active' onclick='showLogoutConfirmation(event)'>$title</a>";
+                    } else {
+                        echo "<a href='?page=$link' class='$active'>$title</a>";
+                    }
                 }
                 ?>
             </div>
@@ -144,7 +187,28 @@ if (!$is_ajax) {
                 ?>
             </div>
         </div>
+        <div id="logout-modal" class="logout-modal">
+            <div class="logout-modal-content">
+                <p>Are you sure you want to logout?</p>
+                <button class="confirm-yes" id="confirm-logout-yes">Yes</button>
+                <button class="confirm-no" id="confirm-logout-no">No</button>
+            </div>
+        </div>
         <?php include 'admin_footer.php'; ?>
+        <script>
+            function showLogoutConfirmation(event) {
+                event.preventDefault();
+                document.getElementById('logout-modal').style.display = 'block';
+            }
+
+            document.getElementById('confirm-logout-yes').addEventListener('click', function() {
+                window.location.href = 'admin_logout.php';
+            });
+
+            document.getElementById('confirm-logout-no').addEventListener('click', function() {
+                document.getElementById('logout-modal').style.display = 'none';
+            });
+        </script>
     </body>
     </html>
     <?php

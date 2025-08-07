@@ -13,6 +13,11 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 0);
 ini_set('default_socket_timeout', 30);
 
+// Add cache control headers at the top
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Expires: 0');
+header('Pragma: no-cache');
+
 // Debug log to confirm request type and session
 $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
 
@@ -200,15 +205,17 @@ if (!$is_ajax) {
         .amc-labels {
             display: flex;
             justify-content: space-between;
-            padding: 10px;
+            padding: 8px 0;
             background-color: #f4f4f4;
             border-bottom: 2px solid #ccc;
             font-weight: bold;
+            align-items: center;
         }
         .amc-labels div {
             flex: 1;
             text-align: center;
             vertical-align: middle;
+            padding: 0 4px;
         }
         .amc-customerContainer {
             width: 100%;
@@ -217,47 +224,57 @@ if (!$is_ajax) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
+            padding: 8px 0;
             border-bottom: 1px solid #ddd;
             background-color: white;
-            min-height: 50px;
+            min-height: 90px;
         }
         .amc-customerBox div {
             flex: 1;
             text-align: center;
             vertical-align: middle;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            padding: 0 4px;
         }
         .amc-customerBox .amc-id {
-            flex: 0.5; /* Reduced space for ID */
+            flex: 0.5;
+            min-width: 50px;
         }
         .amc-customerBox .amc-image {
-            flex: 0.8; /* Reduced space for Image */
+            flex: 0.7;
+            min-width: 60px;
         }
         .amc-customerBox .amc-email {
-            flex: 2; /* Increased space for Email */
+            flex: 2;
+            min-width: 150px;
+            word-break: break-word;
+            white-space: normal;
         }
         .amc-customerBox img {
-            width: 40px; /* Reduced image size */
-            height: 40px;
+            width: 50px;
+            height: 50px;
             object-fit: cover;
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-        .amc-action-buttons {
+        .amc-action {
+            flex: 1;
+            min-width: 90px;
+            text-align: center;
             display: flex;
-            gap: 5px;
-            flex: 1.2;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
         }
         .amc-viewButton, .amc-toggleButton {
-            padding: 5px 8px;
+            padding: 4px 8px;
             border: none;
             border-radius: 3px;
             cursor: pointer;
-            font-size: 10px;
-            width: 70px;
+            font-size: 14px;
+            width: 90px; /* Standardized to match "Deactivate" length */
+            min-width: 90px;
+            max-width: 90px;
+            text-align: center;
         }
         .amc-viewButton {
             background: #0066cc;
@@ -288,11 +305,27 @@ if (!$is_ajax) {
             background-color: white;
             padding: 20px;
             border-radius: 5px;
-            width: 500px;
+            width: 700px; /* Updated to 700px */
+            height: 450px;
+            text-align: left;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .amc-confirm-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 400px;
             text-align: center;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
-        .amc-modal button {
+        .amc-modal button, .amc-confirm-modal-content button {
             padding: 10px 20px;
             margin: 5px;
             border: none;
@@ -301,11 +334,11 @@ if (!$is_ajax) {
             font-size: 14px;
             font-weight: 500;
         }
-        .amc-modal .amc-confirmYes {
+        .amc-modal .amc-confirmYes, .amc-confirm-modal-content .amc-confirmYes {
             background-color: #28a745;
             color: white;
         }
-        .amc-modal .amc-confirmNo {
+        .amc-modal .amc-confirmNo, .amc-confirm-modal-content .amc-confirmNo {
             background-color: #dc3545;
             color: white;
         }
@@ -319,6 +352,59 @@ if (!$is_ajax) {
             color: #666;
             margin: 10px 0px 10px 0px;
         }
+        .amc-fname, .amc-lname {
+            flex: 1.2;
+            min-width: 80px;
+        }
+        .amc-id { min-width: 50px; max-width: 60px; flex: 0 0 55px; }
+        .amc-image { min-width: 60px; max-width: 70px; flex: 0 0 65px; }
+        .amc-fname { min-width: 80px; max-width: 100px; flex: 0 0 90px; }
+        .amc-lname { min-width: 80px; max-width: 100px; flex: 0 0 90px; }
+        .amc-email { min-width: 150px; max-width: 200px; flex: 2 1 180px; }
+        .amc-action { min-width: 90px; max-width: 100px; flex: 0 0 95px; }
+        .amc-action button.amc-viewButton,
+        .amc-action button.amc-toggleButton {
+            min-width: 90px;
+            max-width: 90px;
+            height: 30px;
+            font-size: 14px;
+            padding: 0 8px;
+            margin: 0 2px;
+            border-radius: 5px;
+        }
+        .amc-action button.amc-viewButton { background: #0066cc; color: white; }
+        .amc-action button.amc-toggleButton { color: white; }
+        .amc-action button.amc-toggleButton[style*='#dc3545'] { background: #dc3545; }
+        .amc-action button.amc-toggleButton[style*='#28a745'] { background: #28a745; }
+        .amc-no-results-msg {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 18px;
+            width: auto;
+            background: none;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            margin: 0;
+            text-align: center;
+        }
+        .amc-success-message {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #28a745;
+            font-weight: bold;
+            margin: 0;
+            z-index: 10;
+        }
+        .amc-mainContainer { position: relative; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #aaa #f4f4f4; }
+        .amc-mainContainer::-webkit-scrollbar { width: 8px; background: #f4f4f4; }
+        .amc-mainContainer::-webkit-scrollbar-thumb { background: #aaa; border-radius: 4px; }
     </style>
 
     <body>
@@ -344,12 +430,12 @@ if (!$is_ajax) {
     <div class="amc-mainContainer">
         <div id="amc-notification" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; z-index: 9999; color: white;"></div>
         <div class="amc-labels">
-            <div>ID</div>
-            <div>Image</div>
-            <div>First Name</div>
-            <div>Last Name</div>
-            <div>Email</div>
-            <div>Action</div>
+            <div class="amc-id">ID</div>
+            <div class="amc-image">Image</div>
+            <div class="amc-fname">First Name</div>
+            <div class="amc-lname">Last Name</div>
+            <div class="amc-email">Email</div>
+            <div class="amc-action">Action</div>
         </div>
         <div class="amc-customerContainer">
             <?php if (empty($customer_list)): ?>
@@ -358,13 +444,13 @@ if (!$is_ajax) {
                 <?php foreach ($customer_list as $customer): ?>
                     <div class="amc-customerBox" data-name="<?php echo htmlspecialchars(strtolower($customer['Cust_First_Name'] . ' ' . $customer['Cust_Last_Name'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($customer['Cust_Email'])); ?>">
                         <div class="amc-id"><?php echo htmlspecialchars($customer['Customer_ID']); ?></div>
-                        <div class="amc-image"><img src="<?php echo htmlspecialchars($state_data[$customer['Cust_ID']] ?? $customer['Profile_Image'] ?? 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'); ?>" alt="Profile"></div>
-                        <div><?php echo htmlspecialchars($customer['Cust_First_Name']); ?></div>
-                        <div><?php echo htmlspecialchars($customer['Cust_Last_Name']); ?></div>
+                        <div class="amc-image"><img src="<?php echo (!empty($state_data[$customer['Cust_ID']]) ? htmlspecialchars($state_data[$customer['Cust_ID']]) : (!empty($customer['Profile_Image']) ? htmlspecialchars($customer['Profile_Image']) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png')); ?>" alt="Profile"></div>
+                        <div class="amc-fname"><?php echo htmlspecialchars($customer['Cust_First_Name']); ?></div>
+                        <div class="amc-lname"><?php echo htmlspecialchars($customer['Cust_Last_Name']); ?></div>
                         <div class="amc-email"><?php echo htmlspecialchars($customer['Cust_Email']); ?></div>
-                        <div class="amc-action-buttons">
-                            <button type="button" class="amc-viewButton" onclick="openViewPopup(<?php echo json_encode($customer); ?>)" title="View customer details">View</button>
-                            <form method="POST" action="">
+                        <div class="amc-action">
+                            <button type="button" class="amc-viewButton" data-customer='<?php echo json_encode($customer); ?>' title="View customer details">View</button>
+                            <form method="POST" action="" style="display:inline;">
                                 <input type="hidden" name="cust_id" value="<?php echo htmlspecialchars($customer['Cust_ID']); ?>">
                                 <input type="hidden" name="action" value="toggle_status">
                                 <button type="button" class="amc-toggleButton" style="background: <?php echo isset($customer['Cust_Status']) && $customer['Cust_Status'] ? '#dc3545' : '#28a745'; ?>" onclick="confirmToggle(event, <?php echo htmlspecialchars($customer['Cust_ID']); ?>, <?php echo json_encode(isset($customer['Cust_Status']) && $customer['Cust_Status']); ?>)" title="<?php echo isset($customer['Cust_Status']) && $customer['Cust_Status'] ? 'Deactivate this customer' : 'Activate this customer'; ?>">
@@ -379,7 +465,7 @@ if (!$is_ajax) {
     </div>
 
     <div id="amc-modal" class="amc-modal">
-        <div class="amc-modal-content">
+        <div class="amc-confirm-modal-content">
             <p>Are you sure you want to <strong id="amc-actionText"></strong> this customer?</p>
             <button class="amc-confirmYes" id="confirmYesBtn" title="Confirm action">Yes</button>
             <button class="amc-confirmNo" id="confirmNoBtn" title="Cancel action">No</button>
@@ -387,10 +473,10 @@ if (!$is_ajax) {
     </div>
 
     <div id="amc-viewPopup" class="amc-modal">
-        <div class="amc-modal-content" style="text-align: left;">
-            <h2 style="text-align: center; margin-bottom: 20px; color: #333;">Customer Details</h2>
+        <div class="amc-modal-content">
+            <h2 style="text-align: center; margin-top: 25px; margin-bottom: 30px; color: #333;">Customer Details</h2>
             <div id="amc-viewContent"></div>
-            <button type="button" onclick="closeViewPopup()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">Close</button>
+            <button type="button" id="amc-closeViewBtn" style="padding: 10px 28px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; position: absolute; bottom: 20px; right: 20px;">Close</button>
         </div>
     </div>
 
@@ -399,30 +485,37 @@ if (!$is_ajax) {
         const searchInput = document.getElementById('amc-searchInput');
         const filterSelect = document.getElementById('amc-filterSelect');
         const customerContainer = document.querySelector('.amc-customerContainer');
+        const allBoxes = Array.from(customerContainer.querySelectorAll('.amc-customerBox'));
 
         function filterAndSearch() {
             const searchTerm = searchInput.value.toLowerCase().trim();
             const filterStatus = filterSelect.value;
-
-            const boxes = Array.from(customerContainer.querySelectorAll('.amc-customerBox'));
-            boxes.forEach(box => {
+            let anyVisible = false;
+            allBoxes.forEach(box => {
+                if (box.hasAttribute('style') && box.style.textAlign === 'center') return; // skip 'No customers found.'
                 const name = box.getAttribute('data-name');
                 const email = box.getAttribute('data-email');
-                const status = box.querySelector('.amc-toggleButton').textContent.toLowerCase() === 'activate';
-                const matchesSearch = searchTerm === '' || name.includes(searchTerm) || email.includes(searchTerm);
-                const matchesFilter = filterStatus === 'all' || 
-                    (filterStatus === 'activated' && status) || 
-                    (filterStatus === 'deactivated' && !status);
-
-                box.style.display = matchesSearch && matchesFilter ? '' : 'none';
+                const statusBtn = box.querySelector('.amc-toggleButton');
+                const isActive = statusBtn && statusBtn.textContent.trim().toLowerCase() === 'deactivate';
+                const matchesSearch = searchTerm === '' || (name && name.includes(searchTerm)) || (email && email.includes(searchTerm));
+                const matchesFilter = filterStatus === 'all' || (filterStatus === 'activated' && isActive) || (filterStatus === 'deactivated' && !isActive);
+                if (matchesSearch && matchesFilter) {
+                    box.style.display = '';
+                    anyVisible = true;
+                } else {
+                    box.style.display = 'none';
+                }
             });
-
-            const visibleBoxes = boxes.filter(box => box.style.display !== 'none');
-            if (visibleBoxes.length === 0 && (searchTerm !== '' || filterStatus !== 'all')) {
-                customerContainer.innerHTML = '<div class="amc-customerBox" style="text-align: center; color: #666;">No matching records available</div>';
-            } else if (visibleBoxes.length > 0) {
-                customerContainer.innerHTML = '';
-                visibleBoxes.forEach(box => customerContainer.appendChild(box));
+            let noResultMsg = customerContainer.querySelector('.amc-no-results-msg');
+            if (!anyVisible) {
+                if (!noResultMsg) {
+                    noResultMsg = document.createElement('div');
+                    noResultMsg.className = 'amc-no-results-msg';
+                    noResultMsg.textContent = 'No matching records available';
+                    customerContainer.appendChild(noResultMsg);
+                }
+            } else if (noResultMsg) {
+                noResultMsg.remove();
             }
         }
 
@@ -504,22 +597,61 @@ if (!$is_ajax) {
         document.getElementById('confirmNoBtn').addEventListener('click', closeModal);
 
         function openViewPopup(customer) {
+            const profileImg = customer.Profile_Image || 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
+            const custId = customer.Customer_ID || '';
+            const fname = customer.Cust_First_Name || '';
+            const lname = customer.Cust_Last_Name || '';
+            const email = customer.Cust_Email || '';
+            const phone = customer.Cust_Phone || 'N/A';
+            const address = customer.Default_Address || '-';
             const content = `
-                <img src="${customer.Profile_Image || 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png'}" alt="Profile" style="width: 100px; height: 100px; object-fit: cover; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px;">
-                <p><strong>Customer ID:</strong> ${customer.Customer_ID}</p>
-                <p><strong>First Name:</strong> ${customer.Cust_First_Name}</p>
-                <p><strong>Last Name:</strong> ${customer.Cust_Last_Name}</p>
-                <p><strong>Email:</strong> ${customer.Cust_Email}</p>
-                <p><strong>Phone No:</strong> ${customer.Cust_Phone || 'N/A'}</p>
-                <p><strong>Address:</strong> ${customer.Default_Address || 'N/A'}</p>
+                <div style="display: flex; gap: 20px; align-items: flex-start; height: 400px;">
+                    <div style="flex: 1.1; text-align: left;">
+                        <img src="${profileImg}" alt="Profile" style="width: 200px; height: 200px; object-fit: cover; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px;">
+                        <label style="font-size: 16px; color: #555; display: block; margin-top: 5px; margin-bottom: 5px;">Customer ID</label>
+                        <input type="text" value="${custId}" disabled style="width: 200px; text-align: center; font-size: 15px; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px;">
+                    </div>
+                    <div style="flex: 1.9; min-width: 300px; display: flex; flex-direction: column; gap: 15px;">
+                        <div style="display: flex; gap: 10px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">First Name</label>
+                                <input type="text" value="${fname}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Last Name</label>
+                                <input type="text" value="${lname}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Email</label>
+                            <input type="text" value="${email}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Phone No</label>
+                            <input type="text" value="${phone}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 16px; color: #555; display: block; margin-bottom: 10px;">Address</label>
+                            <input type="text" value="${address}" disabled style="width: 100%; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px; font-size: 15px;">
+                        </div>
+                    </div>
+                </div>
             `;
             document.getElementById('amc-viewContent').innerHTML = content;
             document.getElementById('amc-viewPopup').style.display = 'block';
+            document.getElementById('amc-closeViewBtn').onclick = closeViewPopup;
         }
 
         function closeViewPopup() {
             document.getElementById('amc-viewPopup').style.display = 'none';
         }
+
+        customerContainer.addEventListener('click', function(event) {
+            if (event.target.classList.contains('amc-viewButton')) {
+                const customer = JSON.parse(event.target.getAttribute('data-customer'));
+                openViewPopup(customer);
+            }
+        });
 
         document.addEventListener('click', function(event) {
             if (event.target.classList.contains('amc-toggleButton')) {
