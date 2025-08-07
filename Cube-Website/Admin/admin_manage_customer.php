@@ -222,21 +222,23 @@ if (!$is_ajax) {
         }
         .amc-labels .sortable {
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            white-space: nowrap;
         }
-        .amc-labels .sortable:after {
-            content: ' ↕';
-            margin-left: 5px;
-            font-size: 12px;
+        .amc-labels .sortable .sort-arrow {
+            font-size: 22px;
+            font-weight: bold;
+            color: #007bff;
+            line-height: 1;
+            display: inline-block;
+            vertical-align: middle;
+            transition: color 0.2s, opacity 0.2s;
         }
-        .amc-labels .asc:after {
-            content: ' ↑';
-            margin-left: 5px;
-            font-size: 12px;
-        }
-        .amc-labels .desc:after {
-            content: ' ↓';
-            margin-left: 5px;
-            font-size: 12px;
+        .amc-labels .sortable .sort-arrow.active {
+            display: inline-block;
         }
         .amc-customerContainer {
             width: 100%;
@@ -292,7 +294,7 @@ if (!$is_ajax) {
             border-radius: 3px;
             cursor: pointer;
             font-size: 14px;
-            width: 90px; /* Standardized to match "Deactivate" length */
+            width: 90px;
             min-width: 90px;
             max-width: 90px;
             text-align: center;
@@ -326,7 +328,7 @@ if (!$is_ajax) {
             background-color: white;
             padding: 20px;
             border-radius: 5px;
-            width: 700px; /* Updated to 700px */
+            width: 700px;
             height: 450px;
             text-align: left;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
@@ -426,6 +428,33 @@ if (!$is_ajax) {
         .amc-mainContainer { position: relative; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #aaa #f4f4f4; }
         .amc-mainContainer::-webkit-scrollbar { width: 8px; background: #f4f4f4; }
         .amc-mainContainer::-webkit-scrollbar-thumb { background: #aaa; border-radius: 4px; }
+        #amc-status-message {
+            position: static;
+            top: unset;
+            left: unset;
+            transform: none;
+            z-index: unset;
+            min-width: unset;
+            max-width: unset;
+            box-shadow: none;
+            background: #f8f9fa;
+            border: 1px solid #d4edda;
+            border-radius: 5px;
+            padding: 10px;
+            display: none;
+            text-align: left;
+            color: #28a745;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        body, html {
+            overflow-x: hidden !important;
+        }
+        .amc-mainContainer {
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
     </style>
 
     <body>
@@ -451,19 +480,11 @@ if (!$is_ajax) {
     <div class="amc-mainContainer">
         <div id="amc-notification" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; z-index: 9999; color: white;"></div>
         <div class="amc-labels">
-            <div class="amc-id sortable <?php echo $sort_column === 'Cust_ID' ? $sort_order : ''; ?>" onclick="sortTable('Cust_ID')">
-                ID
-            </div>
+            <div class="amc-id sortable">ID<span class="sort-arrow" id="arrow-id">↕</span></div>
             <div class="amc-image">Image</div>
-            <div class="amc-fname sortable <?php echo $sort_column === 'Cust_First_Name' ? $sort_order : ''; ?>" onclick="sortTable('Cust_First_Name')">
-                First Name
-            </div>
-            <div class="amc-lname sortable <?php echo $sort_column === 'Cust_Last_Name' ? $sort_order : ''; ?>" onclick="sortTable('Cust_Last_Name')">
-                Last Name
-            </div>
-            <div class="amc-email sortable <?php echo $sort_column === 'Cust_Email' ? $sort_order : ''; ?>" onclick="sortTable('Cust_Email')">
-                Email
-            </div>
+            <div class="amc-fname sortable">First Name<span class="sort-arrow" id="arrow-fname">↕</span></div>
+            <div class="amc-lname sortable">Last Name<span class="sort-arrow" id="arrow-lname">↕</span></div>
+            <div class="amc-email sortable">Email<span class="sort-arrow" id="arrow-email">↕</span></div>
             <div class="amc-action">Action</div>
         </div>
         <div class="amc-customerContainer">
@@ -514,7 +535,86 @@ if (!$is_ajax) {
         const searchInput = document.getElementById('amc-searchInput');
         const filterSelect = document.getElementById('amc-filterSelect');
         const customerContainer = document.querySelector('.amc-customerContainer');
-        const allBoxes = Array.from(customerContainer.querySelectorAll('.amc-customerBox'));
+        let allBoxes = Array.from(customerContainer.querySelectorAll('.amc-customerBox'));
+
+        // Sorting state
+        let currentSort = '<?php echo $sort_column; ?>';
+        let currentOrder = '<?php echo strtolower($sort_order); ?>';
+
+        // Helper: get value for sorting
+        function getSortValue(box, column) {
+            switch (column) {
+                case 'Cust_ID':
+                    return parseInt(box.querySelector('.amc-id').textContent.trim()) || 0;
+                case 'Cust_First_Name':
+                    return box.querySelector('.amc-fname').textContent.trim().toLowerCase();
+                case 'Cust_Last_Name':
+                    return box.querySelector('.amc-lname').textContent.trim().toLowerCase();
+                case 'Cust_Email':
+                    return box.querySelector('.amc-email').textContent.trim().toLowerCase();
+                default:
+                    return '';
+            }
+        }
+
+        function sortCustomerList(column) {
+            if (currentSort === column) {
+                currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort = column;
+                currentOrder = 'asc';
+            }
+            // Update URL with sort parameters
+            const url = new URL(window.location);
+            url.searchParams.set('sort', column);
+            url.searchParams.set('order', currentOrder);
+            window.history.pushState({}, '', url);
+            
+            allBoxes.sort((a, b) => {
+                let valA = getSortValue(a, column);
+                let valB = getSortValue(b, column);
+                if (valA < valB) return currentOrder === 'asc' ? -1 : 1;
+                if (valA > valB) return currentOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+            // Remove all boxes and re-append in sorted order
+            allBoxes.forEach(box => customerContainer.appendChild(box));
+            updateSortArrows();
+        }
+
+        // Update sort arrow display
+        function updateSortArrows() {
+            // Reset all arrows to default
+            const arrows = {
+                'Cust_ID': 'arrow-id',
+                'Cust_First_Name': 'arrow-fname',
+                'Cust_Last_Name': 'arrow-lname',
+                'Cust_Email': 'arrow-email'
+            };
+            Object.values(arrows).forEach(arrowId => {
+                const arrow = document.getElementById(arrowId);
+                arrow.textContent = '↕';
+                arrow.className = 'sort-arrow';
+            });
+            // Set active arrow
+            if (currentSort) {
+                const arrowId = arrows[currentSort];
+                if (arrowId) {
+                    const arrow = document.getElementById(arrowId);
+                    arrow.textContent = currentOrder === 'asc' ? '↑' : '↓';
+                    arrow.className = 'sort-arrow active';
+                }
+            }
+        }
+
+        // Initialize sort arrows on page load
+        updateSortArrows();
+
+        // Add click listeners to headers
+        document.querySelector('.amc-labels .amc-id').addEventListener('click', function() { sortCustomerList('Cust_ID'); });
+        document.querySelector('.amc-labels .amc-fname').addEventListener('click', function() { sortCustomerList('Cust_First_Name'); });
+        document.querySelector('.amc-labels .amc-lname').addEventListener('click', function() { sortCustomerList('Cust_Last_Name'); });
+        document.querySelector('.amc-labels .amc-email').addEventListener('click', function() { sortCustomerList('Cust_Email'); });
 
         function filterAndSearch() {
             const searchTerm = searchInput.value.toLowerCase().trim();
@@ -632,7 +732,7 @@ if (!$is_ajax) {
             const lname = customer.Cust_Last_Name || '';
             const email = customer.Cust_Email || '';
             const phone = customer.Cust_Phone || 'N/A';
-            const address = customer.Default_Address || '-';
+            let address = (customer.Default_Address && customer.Default_Address.replace(/[,\s-]+/g, '') !== '') ? customer.Default_Address : '-';
             const content = `
                 <div style="display: flex; gap: 20px; align-items: flex-start; height: 400px;">
                     <div style="flex: 1.1; text-align: left;">
@@ -692,11 +792,6 @@ if (!$is_ajax) {
                 }
             }
         });
-
-        function sortTable(column) {
-            const order = '<?php echo $sort_column === column ? $next_order : 'ASC'; ?>';
-            window.location.href = `?sort=${column}&order=${order}`;
-        }
     });
     </script>
     </body>

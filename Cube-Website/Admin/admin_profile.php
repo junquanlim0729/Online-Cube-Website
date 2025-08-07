@@ -154,14 +154,26 @@ if (isset($_POST['remove_image'])) {
 // Handle password verification
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_password'])) {
     $verify_password = trim($_POST['verify_password']);
-    
-    if (!$staff_data || empty($staff_data['Staff_Password'])) {
-        $messages[] = "Error: Staff data not found or password is empty.";
+    // Always fetch the latest password from the database (plain text)
+    $sql = "SELECT Staff_Password FROM Staff WHERE Staff_ID = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $staff_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $current_password = $row ? $row['Staff_Password'] : '';
+    mysqli_stmt_close($stmt);
+
+    if (empty($current_password)) {
+        echo "Error: Staff data not found or password is empty.";
+        exit();
     } else {
-        if ($verify_password === $staff_data['Staff_Password']) {
-            $messages[] = "verification_success";
+        if ($verify_password === $current_password) {
+            echo "verification_success";
+            exit();
         } else {
-            $messages[] = "Current password is incorrect. Please try again.";
+            echo "Current password is incorrect. Please try again.";
+            exit();
         }
     }
 }
@@ -170,9 +182,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['verify_password'])) {
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
     $new_password = trim($_POST['new_password']);
     $confirm_password = trim($_POST['confirm_password']);
-    
+    // Always fetch the latest password from the database (plain text)
+    $sql = "SELECT Staff_Password FROM Staff WHERE Staff_ID = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "i", $staff_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    $current_password = $row ? $row['Staff_Password'] : '';
+    mysqli_stmt_close($stmt);
+
     if ($new_password !== $confirm_password) {
         $messages[] = "New password and confirm new password do not match.";
+    } else if ($new_password === $current_password || $confirm_password === $current_password) {
+        $messages[] = "New password and confirm new password cannot be the same as the current password.";
     } else {
         $length = strlen($new_password);
         if ($length < 8 || $length > 20) {
@@ -180,19 +203,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
         } elseif (!preg_match('/[A-Z]/', $new_password) || !preg_match('/[a-z]/', $new_password) || !preg_match('/[0-9]/', $new_password) || !preg_match('/[!@#$%^&*(),.?":{}|<>]/', $new_password)) {
             $messages[] = "Password must include uppercase, lowercase, number, and special character.";
         } else {
-            if ($new_password === $staff_data['Staff_Password']) {
-                $messages[] = "New password cannot be the same as the current password.";
+            $update_sql = "UPDATE Staff SET Staff_Password = ?, Last_Password_Change = NOW() WHERE Staff_ID = ?";
+            $update_stmt = mysqli_prepare($conn, $update_sql);
+            mysqli_stmt_bind_param($update_stmt, "si", $new_password, $staff_id);
+            if (mysqli_stmt_execute($update_stmt)) {
+                $messages[] = "Password changed successfully.";
             } else {
-                $update_sql = "UPDATE Staff SET Staff_Password = ?, Last_Password_Change = NOW() WHERE Staff_ID = ?";
-                $update_stmt = mysqli_prepare($conn, $update_sql);
-                mysqli_stmt_bind_param($update_stmt, "si", $new_password, $staff_id);
-                if (mysqli_stmt_execute($update_stmt)) {
-                    $messages[] = "Password changed successfully.";
-                } else {
-                    $messages[] = "Failed to update password: " . mysqli_error($conn);
-                }
-                mysqli_stmt_close($update_stmt);
+                $messages[] = "Failed to update password: " . mysqli_error($conn);
             }
+            mysqli_stmt_close($update_stmt);
         }
     }
 }
@@ -209,6 +228,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
     <h1 style="margin: 0; color: #333; font-size: 28px; font-weight: bold;">My Profile</h1>
 </div>
 <div id="topMessageDiv" style="margin: 0 20px 20px 20px; display: none; position: relative;"></div>
+<?php if (!empty($messages)): ?>
+    <div id="phpErrorMessages" style="margin: 0 20px 20px 20px; color: #dc3545; font-weight: bold;">
+        <?php foreach ($messages as $msg): ?>
+            <div><?php echo htmlspecialchars($msg); ?></div>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
 
 <div style="margin-top: 20px; margin-bottom: 20px; position: relative;">
     <div style="display: flex;">
@@ -486,15 +512,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPasswordValue = this.value;
     });
 
-    newPasswordInput.addEventListener('input', function() {
-        const newPasswordValue = this.value;
-        if (newPasswordValue === currentPasswordValue && currentPasswordValue !== '') {
-            document.getElementById('newPasswordError').textContent = 'New password cannot be the same as the current password.';
-            document.getElementById('newPasswordError').style.display = 'block';
-        } else {
-            document.getElementById('newPasswordError').style.display = 'none';
-        }
-    });
+    // The backend PHP already checks and displays the error after form submission.
 
     confirmPasswordInput.addEventListener('input', function() {
         const newPasswordValue = newPasswordInput.value;
