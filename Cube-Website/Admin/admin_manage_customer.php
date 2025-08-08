@@ -310,61 +310,14 @@ if (!$is_ajax) {
         .amc-toggleButton[form] {
             background: #28a745;
         }
-        .amc-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-        .amc-modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            width: 700px;
-            height: 450px;
-            text-align: left;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .amc-confirm-modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            width: 400px;
-            text-align: center;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
-        .amc-modal button, .amc-confirm-modal-content button {
-            padding: 10px 20px;
-            margin: 5px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .amc-modal .amc-confirmYes, .amc-confirm-modal-content .amc-confirmYes {
-            background-color: #28a745;
-            color: white;
-        }
-        .amc-modal .amc-confirmNo, .amc-confirm-modal-content .amc-confirmNo {
-            background-color: #dc3545;
-            color: white;
-        }
+        /* Unified confirmation modal style (match staff page) */
+        .amc-modal { display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 1000; }
+        .amc-modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #fff; padding: 28px 32px; border-radius: 10px; width: 700px; height: 450px; text-align: left; box-shadow: 0 12px 32px rgba(0,0,0,0.25); display: flex; flex-direction: column; justify-content: center; }
+        .amc-confirm-modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #fff; padding: 28px 32px; border-radius: 10px; width: 520px; max-width: 92vw; text-align: center; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+        .amc-confirm-modal-content p { font-size: 20px; line-height: 1.5; color: #333333; margin: 0 0 18px 0; }
+        .amc-modal button, .amc-confirm-modal-content button { padding: 12px 26px; margin: 6px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 600; min-width: 110px; }
+        .amc-modal .amc-confirmYes, .amc-confirm-modal-content .amc-confirmYes { background-color: #28a745; color: #ffffff; }
+        .amc-modal .amc-confirmNo, .amc-confirm-modal-content .amc-confirmNo { background-color: #dc3545; color: #ffffff; }
         .amcheader {
             font-size: 24px;
             color: #333;
@@ -458,9 +411,12 @@ if (!$is_ajax) {
     </style>
 
     <body>
-    <h1 class="amcheader">Customer Management</h1>
+    <div class="amc-title" style="position: relative;">
+        <h1 class="amcheader" style="margin-right: 240px;">Customer Management</h1>
+        <div id="amc-toast-anchor" style="position: absolute; top: 0; right: 0;"></div>
+    </div>
     <h2 class="amcsubtitle">Manage and monitor all customer accounts</h2>
-    <div class="amc-container">
+    <div class="amc-container" style="position: relative;">
         <div>
             <div class="amc-custom-search">
                 <input type="text" id="amc-searchInput" placeholder="Search by name or email" title="Search customer by name or email">
@@ -477,8 +433,9 @@ if (!$is_ajax) {
         <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Success" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
         <span id="amc-status-text"></span>
     </div>
+    
     <div class="amc-mainContainer">
-        <div id="amc-notification" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; z-index: 9999; color: white;"></div>
+        
         <div class="amc-labels">
             <div class="amc-id sortable">ID<span class="sort-arrow" id="arrow-id">↕</span></div>
             <div class="amc-image">Image</div>
@@ -685,14 +642,10 @@ if (!$is_ajax) {
                 })
                 .then(data => {
                     if (data.success) {
-                        const statusMessage = document.getElementById('amc-status-message');
-                        const statusText = document.getElementById('amc-status-text');
-                        statusText.textContent = 'Status updated successfully!';
-                        statusMessage.style.display = 'block';
+                        showTopRightSuccess('Status updated successfully!');
                         setTimeout(() => {
-                            statusMessage.style.display = 'none';
                             window.location.reload();
-                        }, 2000);
+                        }, 3200);
                     } else {
                         const errorMsg = document.createElement('div');
                         errorMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #dc3545; color: white; padding: 15px; border-radius: 5px; z-index: 9999;';
@@ -720,6 +673,31 @@ if (!$is_ajax) {
             event.preventDefault();
             document.getElementById('amc-modal').style.display = 'none';
             currentToggleForm = null;
+        }
+
+        // Unified top-right success notifier (3s show, float-up disappear)
+        function showTopRightSuccess(message) {
+            let note = document.getElementById('amc-notification');
+            if (!note) {
+                note = document.createElement('div');
+                note.id = 'amc-notification';
+                note.style.cssText = 'position: absolute; top: 0; right: 0; padding: 10px 12px; border-radius: 5px; z-index: 3; color: #155724; background: #d4edda; border: 1px solid #c3e6cb; font-weight: 600; display: block; overflow: hidden; max-width: 40vw; white-space: nowrap; text-overflow: ellipsis;';
+                const anchor = document.getElementById('amc-toast-anchor') || document.body;
+                anchor.appendChild(note);
+            }
+            note.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Success" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;">' + message;
+            note.style.height = '34px';
+            note.style.opacity = '1';
+            note.style.transform = 'translateY(0)';
+            note.style.transition = 'none';
+            void note.offsetHeight;
+            note.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+            setTimeout(() => {
+                note.style.opacity = '0';
+                note.style.transform = 'translateY(-14px)';
+                setTimeout(() => { note.style.display = 'none'; }, 350);
+            }, 3000);
+            note.style.display = 'block';
         }
 
         document.getElementById('confirmYesBtn').addEventListener('click', confirmYes);

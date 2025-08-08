@@ -389,13 +389,11 @@ if (!$is_ajax) {
             color: #666;
             margin: 10px 0px 10px 0px;
         }
+        /* Unified confirmation modal style */
         .ams-modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
         }
@@ -404,30 +402,32 @@ if (!$is_ajax) {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            width: 500px;
+            background-color: #ffffff;
+            padding: 28px 32px;
+            border-radius: 10px;
+            width: 520px;
+            max-width: 92vw;
             text-align: center;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+        }
+        .ams-modal-content p {
+            font-size: 20px;
+            line-height: 1.5;
+            color: #333333;
+            margin: 0 0 18px 0;
         }
         .ams-modal button {
-            padding: 12px 30px;
-            margin: 8px;
+            padding: 12px 26px;
+            margin: 6px 10px;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 15px;
+            font-weight: 600;
+            min-width: 110px;
         }
-        .ams-modal .ams-confirmYes {
-            background-color: #28a745;
-            color: white;
-        }
-        .ams-modal .ams-confirmNo {
-            background-color: #dc3545;
-            color: white;
-        }
+        .ams-modal .ams-confirmYes { background-color: #28a745; color: #ffffff; }
+        .ams-modal .ams-confirmNo  { background-color: #dc3545; color: #ffffff; }
         .ams-popup {
             display: none;
             position: fixed;
@@ -452,9 +452,12 @@ if (!$is_ajax) {
     </style>
 
     <body>
-    <h1 class="amsheader">Admin Staff Management</h1>
+    <div class="ams-title" style="position: relative;">
+        <h1 class="amsheader" style="margin-right: 240px;">Admin Staff Management</h1>
+        <div id="ams-toast-anchor" style="position: absolute; top: 0; right: 0;"></div>
+    </div>
     <h2 class="amssubtitle">Manage and monitor all admin and super admin accounts</h2>
-    <div class="ams-container">
+    <div class="ams-container" style="position: relative;">
         <div>
             <div class="ams-custom-search">
                 <input type="text" id="ams-searchInput" placeholder="Search by name or email" title="Search staff by name or email">
@@ -472,11 +475,12 @@ if (!$is_ajax) {
          <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Success" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
          <span id="ams-status-text"></span>
      </div>
+     
      <div class="ams-mainContainer">
          <?php if (isset($success_message)): ?>
              <div class="ams-success-message"><a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a><?php echo $success_message; ?></div>
          <?php endif; ?>
-         <div id="ams-notification" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; border-radius: 5px; z-index: 9999; color: white;"></div>
+         
         <div class="ams-adminGrid">
             <?php if (empty($staff_list)): ?>
                 <p>No Admins or Super Admins found.</p>
@@ -661,6 +665,31 @@ if (!$is_ajax) {
         filterSelect.addEventListener('change', filterAndSearch);
 
         let currentToggleForm = null;
+
+        // Unified top-right success notifier (3s show, float-up disappear)
+        function showTopRightSuccess(message) {
+            let note = document.getElementById('ams-notification');
+            if (!note) {
+                note = document.createElement('div');
+                note.id = 'ams-notification';
+                note.style.cssText = 'position: absolute; top: 0; right: 0; padding: 10px 12px; border-radius: 5px; z-index: 3; color: #155724; background: #d4edda; border: 1px solid #c3e6cb; font-weight: 600; display: block; overflow: hidden; max-width: 40vw; white-space: nowrap; text-overflow: ellipsis;';
+                const anchor = document.getElementById('ams-toast-anchor') || document.body;
+                anchor.appendChild(note);
+            }
+            note.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Success" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;">' + message;
+            note.style.height = '34px';
+            note.style.opacity = '1';
+            note.style.transform = 'translateY(0)';
+            note.style.transition = 'none';
+            void note.offsetHeight;
+            note.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+            setTimeout(() => {
+                note.style.opacity = '0';
+                note.style.transform = 'translateY(-14px)';
+                setTimeout(() => { note.style.display = 'none'; }, 350);
+            }, 3000);
+            note.style.display = 'block';
+        }
         function confirmToggle(event, staffId, isActive) {
             event.preventDefault();
             currentToggleForm = event.target.closest('form');
@@ -693,15 +722,11 @@ if (!$is_ajax) {
                 })
                                  .then(data => {
                      if (data.success) {
-                         // Show success message above mainContainer
-                         const statusMessage = document.getElementById('ams-status-message');
-                         const statusText = document.getElementById('ams-status-text');
-                         statusText.textContent = 'Status updated successfully!';
-                         statusMessage.style.display = 'block';
+                         // Show success message (top-right float-up)
+                         showTopRightSuccess('Status updated successfully!');
                          setTimeout(() => {
-                             statusMessage.style.display = 'none';
                              window.location.reload();
-                         }, 2000);
+                         }, 3200);
                      } else {
                          // Show error message
                          const errorMsg = document.createElement('div');
@@ -784,17 +809,13 @@ if (!$is_ajax) {
                  });
              })
                          .then(data => {
-                 if (data.success) {
-                     // Show success message above mainContainer
-                     const statusMessage = document.getElementById('ams-status-message');
-                     const statusText = document.getElementById('ams-status-text');
-                     statusText.textContent = 'Staff added successfully!';
-                     statusMessage.style.display = 'block';
-                     closePopup(); // Close the popup
-                     setTimeout(() => {
-                         statusMessage.style.display = 'none';
-                         window.location.reload();
-                     }, 2000);
+                if (data.success) {
+                    // Show success message above mainContainer (top-right float-up style)
+                    showTopRightSuccess('Staff added successfully!');
+                    closePopup(); // Close the popup
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3200);
                  } else {
                      errorMessage.textContent = data.message || 'An error occurred. Please try again.';
                      errorMessage.style.display = 'block';

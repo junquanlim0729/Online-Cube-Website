@@ -1,8 +1,20 @@
 <?php
 require_once 'dataconnection.php';
 
+// Ensure session is started for accessing $_SESSION values
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 $messages = [];
 $staff_id = isset($_GET['id']) ? intval($_GET['id']) : (isset($_SESSION['Staff_ID']) ? intval($_SESSION['Staff_ID']) : 0);
+// Prefer posted staff_id when available (AJAX form submissions)
+if (isset($_POST['staff_id'])) {
+    $posted_staff_id = intval($_POST['staff_id']);
+    if ($posted_staff_id > 0) {
+        $staff_id = $posted_staff_id;
+    }
+}
 $staff_data = null;
 
 // Load configuration file
@@ -194,8 +206,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
 
     if ($new_password !== $confirm_password) {
         $messages[] = "New password and confirm new password do not match.";
-    } else if ($new_password === $current_password || $confirm_password === $current_password) {
-        $messages[] = "New password and confirm new password cannot be the same as the current password.";
+    } elseif ($new_password === $current_password) {
+        $messages[] = "New password cannot be the same as the current password.";
+    } elseif ($confirm_password === $current_password) {
+        $messages[] = "Confirm new password cannot be the same as the current password.";
     } else {
         $length = strlen($new_password);
         if ($length < 8 || $length > 20) {
@@ -203,15 +217,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
         } elseif (!preg_match('/[A-Z]/', $new_password) || !preg_match('/[a-z]/', $new_password) || !preg_match('/[0-9]/', $new_password) || !preg_match('/[!@#$%^&*(),.?":{}|<>]/', $new_password)) {
             $messages[] = "Password must include uppercase, lowercase, number, and special character.";
         } else {
-            $update_sql = "UPDATE Staff SET Staff_Password = ?, Last_Password_Change = NOW() WHERE Staff_ID = ?";
-            $update_stmt = mysqli_prepare($conn, $update_sql);
-            mysqli_stmt_bind_param($update_stmt, "si", $new_password, $staff_id);
-            if (mysqli_stmt_execute($update_stmt)) {
-                $messages[] = "Password changed successfully.";
-            } else {
-                $messages[] = "Failed to update password: " . mysqli_error($conn);
+            mysqli_begin_transaction($conn);
+            try {
+                // Store password as plain text per requirements
+                $update_sql = "UPDATE Staff SET Staff_Password = ? WHERE Staff_ID = ?";
+                $update_stmt = mysqli_prepare($conn, $update_sql);
+                mysqli_stmt_bind_param($update_stmt, "si", $new_password, $staff_id);
+                if (mysqli_stmt_execute($update_stmt)) {
+                    mysqli_stmt_close($update_stmt);
+                    mysqli_commit($conn);
+                    if (isset($_SESSION['password_verified'])) {
+                        $_SESSION['password_verified'] = false;
+                    }
+                    // Return a simple success marker for the fetch() handler
+                    header('Content-Type: text/plain');
+                    echo 'success';
+                    exit();
+                } else {
+                    throw new Exception("Database update failed: " . mysqli_error($conn));
+                }
+            } catch (Exception $e) {
+                mysqli_rollback($conn);
+                if (isset($update_stmt)) {
+                    mysqli_stmt_close($update_stmt);
+                }
+                header('Content-Type: text/plain');
+                echo 'error: ' . $e->getMessage();
+                exit();
             }
-            mysqli_stmt_close($update_stmt);
         }
     }
 }
@@ -224,10 +257,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-<div style="border-bottom: 2px solid #dee2e6; padding: 20px; margin-bottom: 20px;">
+<div style="border-bottom: 2px solid #dee2e6; padding: 20px; margin-bottom: 0px;">
     <h1 style="margin: 0; color: #333; font-size: 28px; font-weight: bold;">My Profile</h1>
 </div>
-<div id="topMessageDiv" style="margin: 0 20px 20px 20px; display: none; position: relative;"></div>
+<div id="topMessageDiv" style="margin: 5px 20px 5px 20px;"><div id="topMessageContent"></div></div>
 <?php if (!empty($messages)): ?>
     <div id="phpErrorMessages" style="margin: 0 20px 20px 20px; color: #dc3545; font-weight: bold;">
         <?php foreach ($messages as $msg): ?>
@@ -236,9 +269,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
     </div>
 <?php endif; ?>
 
-<div style="margin-top: 20px; margin-bottom: 20px; position: relative;">
+<div style="margin-top: 0px; margin-bottom: 20px; position: relative;">
     <div style="display: flex;">
-        <div style="flex: 1; text-align: center; min-width: 150px; padding: 20px; box-sizing: border-box; border-right: 2px solid #ccc;">
+        <div style="flex: 1; text-align: center; min-width: 150px; padding: 20px; box-sizing: border-box; border-right: 2px solid #ccc; margin-top: 0px;">
             <?php if ($staff_data): ?>
                 <form id="imageForm" enctype="multipart/form-data" style="display: flex; flex-direction: column; align-items: center; height: 100%; width: 100%;">
                     <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
@@ -253,7 +286,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
             <?php endif; ?>
         </div>
 
-        <div style="flex: 2; padding: 20px; box-sizing: border-box;">
+        <div style="flex: 2; padding: 20px; box-sizing: border-box; margin-top: 0px;">
             <?php if ($staff_data): ?>
                 <div id="profileDisplaySection">
                     <h3 style="margin-bottom: 20px; color: #333;">Profile Information</h3>
@@ -278,6 +311,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
                     
                     <div id="passwordVerifySection">
                         <form method="POST" action="" id="passwordVerifyForm" style="display: flex; flex-direction: column; gap: 15px;">
+                            <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
                             <div style="display: flex; align-items: center;">
                                 <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">Current Password</label>
                                 <input type="password" name="verify_password" required style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
@@ -291,6 +325,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
                     
                     <div id="passwordChangeFormSection" style="display: none;">
                         <form method="POST" action="" id="passwordForm" style="display: flex; flex-direction: column; gap: 15px;">
+                            <input type="hidden" name="staff_id" value="<?php echo htmlspecialchars($staff_data['Staff_ID']); ?>">
                             <div style="display: flex; align-items: center; position: relative;">
                                 <label style="flex: 1; font-weight: bold; color: #333; margin-right: 15px;">New Password <a href="#" id="passwordTipsLink" style="margin-left: 10px; color: #007bff; text-decoration: underline; font-size: 12px;">Password Tips</a></label>
                                 <input type="password" name="new_password" id="newPassword" maxlength="20" required style="flex: 2; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; width: 100%;">
@@ -330,6 +365,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const removeImageBtn = document.getElementById('removeImageBtn');
     const imageForm = document.getElementById('imageForm');
     const topMessageDiv = document.getElementById('topMessageDiv');
+    const topMessageContent = document.getElementById('topMessageContent');
 
     const currentImageSrc = profileImage.src;
     const defaultImageSrc = '<?php echo htmlspecialchars($default_image); ?>';
@@ -340,40 +376,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showTopMessage(message, isSuccess = true) {
-        topMessageDiv.style.display = 'none';
-        topMessageDiv.style.opacity = '0';
-        topMessageDiv.style.transform = 'translateY(20px)';
-        
-        topMessageDiv.textContent = message;
-        topMessageDiv.style.cssText = isSuccess ? 
-            'color: #28a745; font-weight: bold; font-size: 16px; padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; transition: all 0.5s ease; width: 100%; box-sizing: border-box;' :
-            'color: #dc3545; font-weight: bold; font-size: 16px; padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; transition: all 0.5s ease; width: 100%; box-sizing: border-box;';
-        
-        topMessageDiv.style.display = 'block';
+        // Prepare styles and message content on the inner content element
+        topMessageContent.className = isSuccess ? 'success' : 'error';
+        // Build content with tick icon for success
+        topMessageContent.innerHTML = '';
+        if (isSuccess) {
+            const icon = document.createElement('img');
+            icon.src = 'https://cdn-icons-png.flaticon.com/512/190/190411.png';
+            icon.alt = 'Success';
+            icon.style.width = '18px';
+            icon.style.height = '18px';
+            icon.style.marginRight = '6px';
+            icon.style.verticalAlign = 'middle';
+            const span = document.createElement('span');
+            span.textContent = message;
+            topMessageContent.appendChild(icon);
+            topMessageContent.appendChild(span);
+        } else {
+            topMessageContent.textContent = message;
+        }
+
+        // Instantly appear (no entrance animation)
+        topMessageContent.style.transition = 'none';
+        topMessageContent.style.opacity = '1';
+        topMessageContent.style.transform = 'translateY(0)';
+        // Force reflow, then enable transition for exit animation
+        void topMessageContent.offsetHeight;
+        topMessageContent.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+
+        // Auto-hide with float-up disappear while keeping reserved space
+        const hideDelayMs = isSuccess ? 3000 : 2200;
         setTimeout(() => {
-            topMessageDiv.style.opacity = '1';
-            topMessageDiv.style.transform = 'translateY(0)';
-        }, 10);
-        
-        setTimeout(() => {
-            topMessageDiv.style.opacity = '0';
-            topMessageDiv.style.transform = 'translateY(-30px)';
+            topMessageContent.style.opacity = '0';
+            topMessageContent.style.transform = 'translateY(-14px)';
             const leftSection = document.querySelector('div[style*="flex: 1"]');
             const rightSection = document.querySelector('div[style*="flex: 2"]');
             if (leftSection && rightSection) {
                 leftSection.style.transition = 'transform 1s ease';
                 rightSection.style.transition = 'transform 1s ease';
-                leftSection.style.transform = 'translateY(-10px)';
-                rightSection.style.transform = 'translateY(-10px)';
+                leftSection.style.transform = 'translateY(-3px)';
+                rightSection.style.transform = 'translateY(-3px)';
                 setTimeout(() => {
                     leftSection.style.transform = 'translateY(0)';
                     rightSection.style.transform = 'translateY(0)';
                 }, 100);
             }
             setTimeout(() => {
-                topMessageDiv.style.display = 'none';
-            }, 500);
-        }, 3000);
+                topMessageContent.textContent = '';
+            }, 350);
+        }, hideDelayMs);
     }
 
     function updateImage(src) {
@@ -402,20 +453,24 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.text().then(text => {
-                try {
-                    return JSON.parse(text);
-                } catch (e) {
-                    console.error('Response text:', text);
-                    throw new Error('Invalid JSON response: ' + text);
+        .then(response => response.text())
+        .then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Non-JSON response text:', text);
+                if (text && text.toLowerCase().includes('success')) {
+                    // Fallback: treat as success and reload to reflect the new image
+                    showTopMessage('Profile image updated successfully!', true);
+                    // Reload after the success message has fully shown and floated up
+                    setTimeout(() => window.location.reload(), 4500);
+                    return null;
                 }
-            });
+                throw new Error('Invalid JSON response');
+            }
         })
         .then(data => {
+            if (!data) return; // handled by fallback
             if (data.status === 'success') {
                 updateImage(data.image);
                 showTopMessage(data.message || 'Profile image updated successfully!', true);
@@ -430,10 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Upload error:', error);
-            showTopMessage('Profile image updated successfully!', true);
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            showTopMessage('Failed to upload image.', false);
         });
     });
 
@@ -445,20 +497,24 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'remove_image=1'
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.text().then(text => {
-                try {
-                    return JSON.parse(text);
-                } catch (e) {
-                    console.error('Response text:', text);
-                    throw new Error('Invalid JSON response: ' + text);
+        .then(response => response.text())
+        .then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Non-JSON response text:', text);
+                if (text && text.toLowerCase().includes('success')) {
+                    // Fallback: treat as success and reload to reflect the removal
+                    showTopMessage('Profile image removed successfully!', true);
+                    // Reload after the success message has fully shown and floated up
+                    setTimeout(() => window.location.reload(), 4500);
+                    return null;
                 }
-            });
+                throw new Error('Invalid JSON response');
+            }
         })
         .then(data => {
+            if (!data) return; // handled by fallback
             if (data.status === 'success') {
                 updateImage(data.image);
                 imageUpload.value = '';
@@ -473,10 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Removal error:', error);
-            showTopMessage('Profile image removed successfully!', true);
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
+            showTopMessage('Failed to remove image.', false);
         });
     });
 
@@ -512,18 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPasswordValue = this.value;
     });
 
-    // The backend PHP already checks and displays the error after form submission.
-
-    confirmPasswordInput.addEventListener('input', function() {
-        const newPasswordValue = newPasswordInput.value;
-        const confirmPasswordValue = this.value;
-        if (newPasswordValue !== confirmPasswordValue && confirmPasswordValue !== '') {
-            document.getElementById('confirmPasswordError').textContent = 'New password and confirm new password do not match.';
-            document.getElementById('confirmPasswordError').style.display = 'block';
-        } else {
-            document.getElementById('confirmPasswordError').style.display = 'none';
-        }
-    });
+    // Removed live mismatch check. Mismatch will be reported only on submit.
 
     const passwordVerifyForm = document.getElementById('passwordVerifyForm');
     const passwordForm = document.getElementById('passwordForm');
@@ -578,14 +620,39 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const newPasswordValue = newPasswordInput.value;
         const confirmPasswordValue = confirmPasswordInput.value;
+        const currentPassword = '<?php echo htmlspecialchars($staff_data['Staff_Password'] ?? ''); ?>';
         
         if (newPasswordValue !== confirmPasswordValue) {
             confirmPasswordError.textContent = 'New password and confirm new password do not match.';
             confirmPasswordError.style.display = 'block';
             return;
         }
+        if (newPasswordValue === currentPassword) {
+            newPasswordError.textContent = 'New password cannot be the same as the current password.';
+            newPasswordError.style.display = 'block';
+            return;
+        }
+        if (confirmPasswordValue === currentPassword) {
+            confirmPasswordError.textContent = 'Confirm new password cannot be the same as the current password.';
+            confirmPasswordError.style.display = 'block';
+            return;
+        }
+        
+        const length = newPasswordValue.length;
+        if (length < 8 || length > 20) {
+            newPasswordError.textContent = 'Password must be 8-20 characters long.';
+            newPasswordError.style.display = 'block';
+            return;
+        }
+        if (!/[A-Z]/.test(newPasswordValue) || !/[a-z]/.test(newPasswordValue) || !/[0-9]/.test(newPasswordValue) || !/[!@#$%^&*(),.?":{}|<>]/.test(newPasswordValue)) {
+            newPasswordError.textContent = 'Password must include uppercase, lowercase, number, and special character.';
+            newPasswordError.style.display = 'block';
+            return;
+        }
         
         const formData = new FormData(this);
+        // Ensure server identifies this request as a password change action
+        formData.append('change_password', '1');
 
         fetch('', {
             method: 'POST',
@@ -602,21 +669,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     passwordVerifySection.style.display = 'block';
                 }, 1500);
             } else {
-                if (data.includes('cannot be the same')) {
-                    newPasswordError.textContent = 'New password cannot be the same as the current password.';
-                    newPasswordError.style.display = 'block';
-                } else if (data.includes('8-20 characters')) {
-                    newPasswordError.textContent = 'Password must be 8-20 characters long.';
-                    newPasswordError.style.display = 'block';
-                } else if (data.includes('uppercase, lowercase, number, and special character')) {
-                    newPasswordError.textContent = 'Password must include uppercase, lowercase, number, and special character.';
-                    newPasswordError.style.display = 'block';
-                } else if (data.includes('do not match')) {
-                    confirmPasswordError.textContent = 'New password and confirm new password do not match.';
-                    confirmPasswordError.style.display = 'block';
-                } else {
-                    showTopMessage('Failed to change password. Please try again.', false);
-                }
+                showTopMessage('Failed to change password. Please try again.', false);
             }
         })
         .catch(error => {
@@ -639,6 +692,42 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+    #topMessageDiv {
+        margin: 5px 20px 5px 20px; /* enforce 5px margins top & bottom */
+        height: 34px; /* fixed, stable space */
+        display: block;
+        position: relative;
+        overflow: hidden; /* prevent layout growth when content animates */
+    }
+    #topMessageContent {
+        will-change: opacity, transform;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+    }
+    #topMessageContent.success {
+        color: #155724; /* align with manage pages success style */
+        font-weight: 600;
+        font-size: 15px;
+        padding: 10px 12px; /* align padding */
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 5px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    #topMessageContent.error {
+        color: #721c24;
+        font-weight: 600;
+        font-size: 15px;
+        padding: 10px 12px;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 5px;
+        width: 100%;
+        box-sizing: border-box;
+    }
     body {
         margin: 0;
         padding: 0;
