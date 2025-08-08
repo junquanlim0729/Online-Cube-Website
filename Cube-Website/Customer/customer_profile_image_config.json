@@ -1,0 +1,12 @@
+{
+    "default_image": "https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png",
+    "allowed_types": ["image/png", "image/jpeg"],
+    "upload_dir": "customer_uploads",
+    "single_image_policy": true,
+    "cleanup_on_update": true,
+    "error_messages": {
+        "invalid_type": "Only PNG and JPEG files are allowed.",
+        "upload_failed": "Failed to upload image.",
+        "database_error": "Database update failed."
+    }
+}

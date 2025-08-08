@@ -258,7 +258,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['change_password'])) {
 </head>
 <body>
 <div style="border-bottom: 2px solid #dee2e6; padding: 20px; margin-bottom: 0px;">
-    <h1 style="margin: 0; color: #333; font-size: 28px; font-weight: bold;">My Profile</h1>
+    <h1 style="margin: 0; color: #333; font-size: 24px; font-weight: bold;">My Profile</h1>
 </div>
 <div id="topMessageDiv" style="margin: 5px 20px 5px 20px;"><div id="topMessageContent"></div></div>
 <?php if (!empty($messages)): ?>

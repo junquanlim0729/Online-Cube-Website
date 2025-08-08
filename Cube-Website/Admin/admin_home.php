@@ -142,7 +142,7 @@ if (!$is_ajax) {
             .menu-dropdown-toggle.open::after { content: ' ▾'; }
             /* Logout pinned above footer, style in red */
             /* Keep logout visibly above the footer */
-            .admin-sidebar li.logout { position: absolute; bottom: 60px; left: 10px; right: 10px; margin: 0; }
+            .admin-sidebar li.logout { position: absolute; bottom: 25px; left: 10px; right: 10px; margin: 0; }
             .admin-sidebar li.logout a { color: #dc3545; font-weight: 600; }
             .admin-sidebar li.logout a img { filter: invert(24%) sepia(83%) saturate(5346%) hue-rotate(346deg) brightness(94%) contrast(101%); }
             .admin-sidebar li.logout { margin-top: auto; }

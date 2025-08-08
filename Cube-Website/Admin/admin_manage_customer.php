@@ -720,7 +720,7 @@ if (!$is_ajax) {
                 <div style="display: flex; gap: 20px; align-items: flex-start; height: 400px;">
                     <div style="flex: 1.1; text-align: left;">
                         <img src="${profileImg}" alt="Profile" style="width: 200px; height: 200px; object-fit: cover; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px;">
-                        <label style="font-size: 16px; color: #555; display: block; margin-top: 5px; margin-bottom: 5px;">Customer ID</label>
+                        <label style="font-size: 16px; color: #555; display: block; margin-top: 6px; margin-bottom: 10px;">Customer ID</label>
                         <input type="text" value="${custId}" disabled style="width: 200px; text-align: center; font-size: 15px; background: #f4f4f4; border: 1px solid #ccc; border-radius: 3px; height: 30px; line-height: 30px;">
                     </div>
                     <div style="flex: 1.9; min-width: 300px; display: flex; flex-direction: column; gap: 15px;">
