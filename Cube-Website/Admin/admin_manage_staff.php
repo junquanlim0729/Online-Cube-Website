@@ -49,10 +49,15 @@ if (!isset($conn) || !is_object($conn)) {
     $conn = getConnection();
 }
 
-// Session check only for non-AJAX
-if (!$is_ajax && (!isset($_SESSION['Staff_ID']) || (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin'))) {
-    header("Location: admin_login.php");
-    exit();
+// Session/role check only for non-AJAX
+if (!$is_ajax) {
+    $hasStaffId = isset($_SESSION['Staff_ID']);
+    $role = isset($_SESSION['role']) ? strtolower(trim($_SESSION['role'])) : '';
+    $isAllowed = in_array($role, ['admin','super admin','superadmin'], true);
+    if (!$hasStaffId || !$isAllowed) {
+        header("Location: admin_login.php");
+        exit();
+    }
 }
 
 $current_staff_id = isset($_SESSION['Staff_ID']) ? $_SESSION['Staff_ID'] : 0;
