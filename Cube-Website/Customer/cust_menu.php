@@ -15,9 +15,10 @@ if (!in_array($page, $valid_pages)) { $page = 'cust_profile.php'; }
 
 <?php include 'cust_header.php'; ?>
 
-<div style="display:flex; min-height: calc(100vh - 120px); margin: 0; padding: 0; box-sizing:border-box;">
-  <aside style="width: 240px; background:#f4f4f4; border-right:1px solid #e0e0e0; padding:12px; position: fixed; top: 76px; left: 0; height: calc(100vh - 76px); overflow-y: auto;">
-    <h3 style="margin: 0 0 10px 0; color:#333;">My Account</h3>
+<div style="display:flex; margin:0; padding:0; box-sizing:border-box; min-height:calc(100vh - 60px);">
+  <!-- Sidebar connects from bottom of header to above footer -->
+  <aside style="width:240px; background:#f4f4f4; border-right:1px solid #e0e0e0; padding:12px; position:fixed; top:60px; left:0; bottom:40px; overflow-y:auto;">
+    <h3 style="margin: 8px 0 10px 0; color:#333;">My Account</h3>
     <nav style="display:flex; flex-direction:column; gap:8px;">
       <a href="?page=cust_profile.php" style="text-decoration:none; color:#333; padding:8px 10px; border-radius:4px; background:<?php echo $page==='cust_profile.php'?'#e9ecef':'transparent'; ?>">My Profile</a>
       <a href="?page=cust_edit_profile.php" style="text-decoration:none; color:#333; padding:8px 10px; border-radius:4px; background:<?php echo $page==='cust_edit_profile.php'?'#e9ecef':'transparent'; ?>">Edit Profile</a>
@@ -27,7 +28,8 @@ if (!in_array($page, $valid_pages)) { $page = 'cust_profile.php'; }
     </nav>
   </aside>
 
-  <section style="flex:1; background:#fff; margin-left: 240px; padding:20px; min-height:60vh;">
+  <!-- Content area with left margin equal to sidebar width; account for footer height -->
+  <section style="flex:1; background:#fff; margin-left:240px; padding:20px; min-height:calc(100vh - 60px - 40px); padding-top:80px;">
     <?php include $page; ?>
   </section>
 </div>

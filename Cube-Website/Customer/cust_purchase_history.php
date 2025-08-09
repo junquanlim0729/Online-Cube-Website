@@ -9,3 +9,4 @@ if (!isset($_SESSION['Cust_ID'])) {
   <h2 style="margin-top:0;">Purchase History</h2>
   <p>Your purchase history will appear here.</p>
 </div>
+

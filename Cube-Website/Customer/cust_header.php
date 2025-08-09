@@ -1,18 +1,18 @@
 <?php if (session_status() === PHP_SESSION_NONE) { session_start(); } ?>
-<header style="background:#000; color:#fff; border-bottom:1px solid #333; padding:10px 20px; text-align:left;">
-    <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;">
-        <h2 style="margin:0; color:#fff;">CubePro Hub</h2>
-        <nav style="display:flex; gap:16px;">
+<header id="custHeader" style="background:#000; color:#fff; border-bottom:1px solid #333; padding:10px 20px; text-align:left; position:fixed; top:0; left:0; width:100%; height:60px; z-index: 1000; transition: transform 0.25s ease;">
+    <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:100%;">
+        <h2 style="margin:0; color:#fff; font-size:20px;">CubePro Hub</h2>
+        <nav style="display:flex; gap:16px; align-items:center;">
             <a href="cust_about.php" style="color:#fff; text-decoration:none; transition:color 0.2s;" onmouseover="this.style.color='#ff8c00'" onmouseout="this.style.color='#fff'">About Us</a>
             <a href="cust_contact.php" style="color:#fff; text-decoration:none; transition:color 0.2s;" onmouseover="this.style.color='#ff8c00'" onmouseout="this.style.color='#fff'">Contact</a>
             <?php if (isset($_SESSION['Cust_ID'])): ?>
                 <div style="position:relative; display:inline-block;">
                     <a href="#" onclick="toggleCustomerDropdown(event)" style="color:#fff; text-decoration:none; transition:color 0.2s;" onmouseover="this.style.color='#ff8c00'" onmouseout="this.style.color='#fff'">My Account ▼</a>
-                                         <div id="customer-dropdown" style="display:none; position:absolute; top:100%; right:0; background:#fff; border:1px solid #ddd; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.1); min-width:150px; z-index:1000;">
-                         <a href="cust_menu.php?page=cust_profile.php" style="display:block; padding:10px 15px; color:#333; text-decoration:none; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">My Account</a>
-                         <a href="cust_menu.php?page=cust_purchase_history.php" style="display:block; padding:10px 15px; color:#333; text-decoration:none; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">My Purchase</a>
-                         <a href="#" onclick="showCustomerLogoutConfirmation(event)" style="display:block; padding:10px 15px; color:#dc3545; text-decoration:none;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">Logout</a>
-                     </div>
+                    <div id="customer-dropdown" style="display:none; position:absolute; top:100%; right:0; background:#fff; border:1px solid #ddd; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.1); min-width:150px; z-index:1000;">
+                        <a href="cust_menu.php?page=cust_profile.php" style="display:block; padding:10px 15px; color:#333; text-decoration:none; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">My Account</a>
+                        <a href="cust_menu.php?page=cust_purchase_history.php" style="display:block; padding:10px 15px; color:#333; text-decoration:none; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">My Purchase</a>
+                        <a href="#" onclick="showCustomerLogoutConfirmation(event)" style="display:block; padding:10px 15px; color:#dc3545; text-decoration:none;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">Logout</a>
+                    </div>
                 </div>
             <?php else: ?>
                 <a href="cust_login.php" style="color:#fff; text-decoration:none; transition:color 0.2s;" onmouseover="this.style.color='#ff8c00'" onmouseout="this.style.color='#fff'">Login</a>
@@ -49,6 +49,21 @@
             dropdown.style.display = 'none';
         }
     });
+    
+    // Hide on scroll down, show on scroll up
+    (function(){
+      let lastY = window.pageYOffset || document.documentElement.scrollTop;
+      const header = document.getElementById('custHeader');
+      window.addEventListener('scroll', function(){
+        const y = window.pageYOffset || document.documentElement.scrollTop;
+        if (y > lastY && y > 80) { // down
+          header.style.transform = 'translateY(-100%)';
+        } else { // up
+          header.style.transform = 'translateY(0)';
+        }
+        lastY = y;
+      }, { passive: true });
+    })();
     
     // Close modal when clicking outside
     window.onclick = function(event) {
