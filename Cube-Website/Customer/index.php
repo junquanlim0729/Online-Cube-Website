@@ -5,6 +5,7 @@ require_once 'dataconnection.php';
 
 <?php include 'cust_header.php'; ?>
 
+<style> html, body { border: 0 !important; outline: 0 !important; box-shadow: none !important; border-radius: 0 !important; } </style>
 <main style="max-width:1200px; margin:20px auto; padding:0 20px; min-height:60vh;">
     <h1 style="color:#007bff; text-align:center;">Welcome to CubePro Hub</h1>
     <?php if (isset($_SESSION['Cust_ID'])): ?>

@@ -74,6 +74,33 @@ if (file_exists($state_file)) {
     $state_data = json_decode($state_content, true) ?: [];
 }
 
+// Compute project base web path (e.g., /Online-Cube-Website)
+$__script_name = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
+$__admin_dir   = rtrim(dirname($__script_name), '/\\');
+$PROJECT_BASE_WEB = rtrim(dirname($__admin_dir), '/\\');
+if ($PROJECT_BASE_WEB === '' || $PROJECT_BASE_WEB === '.') { $PROJECT_BASE_WEB = ''; }
+
+// Normalize image URL from DB into a web path usable from Admin page
+if (!function_exists('normalizeCustomerImageUrl')) {
+    function normalizeCustomerImageUrl($path, $projectBaseWeb) {
+        $path = trim((string)$path);
+        if ($path === '') { return ''; }
+        if (preg_match('~^https?://~i', $path)) { return $path; }
+        // Already absolute within site
+        if ($path[0] === '/') { return $path; }
+        // Paths starting with Customer/
+        if (stripos($path, 'Customer/') === 0) {
+            return rtrim($projectBaseWeb, '/') . '/' . ltrim($path, '/');
+        }
+        // Paths starting with customer_uploads/ (saved from Customer pages)
+        if (stripos($path, 'customer_uploads/') === 0) {
+            return rtrim($projectBaseWeb, '/') . '/Customer/' . ltrim($path, '/');
+        }
+        // Fallback: treat as relative under Customer/
+        return rtrim($projectBaseWeb, '/') . '/Customer/' . ltrim($path, '/');
+    }
+}
+
 // Handle sorting
 $sort_column = isset($_GET['sort']) ? $_GET['sort'] : 'Cust_ID';
 $sort_order = isset($_GET['order']) && $_GET['order'] === 'desc' ? 'DESC' : 'ASC';
@@ -160,262 +187,25 @@ if (!$is_ajax) {
             box-sizing: border-box;
             background-color: white;
             position: relative;
+            border: none !important; outline: none !important; box-shadow: none !important; /* Only page body reset */
         }
-        .amc-container {
-            margin-top: 20px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .amc-mainContainer {
-            max-height: calc(78vh - 60px - 80px);
-            overflow-y: auto;
-            padding-bottom: 10px;
-            background-color: lightgrey;
-            border: 1px solid #ccc;
-            border-color: #000000;
-            border-radius: 5px;
-            height: 430px;
-            position: relative;
-            box-sizing: border-box;
-        }
-        .amc-success-message {
-            text-align: center;
-            color: #28a745;
-            font-weight: bold;
-            margin: 10px 0;
-            position: absolute;
-            top: -40px;
-            left: 0;
-            width: 100%;
-        }
-        .amc-custom-search {
-            display: inline-block;
-            position: relative;
-        }
-        .amc-searchInput {
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 180px;
-            box-sizing: border-box;
-        }
-        .amc-filterSelect {
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 180px;
-            box-sizing: border-box;
-            margin-left: 10px;
-        }
-        .amc-labels {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            background-color: #f4f4f4;
-            border-bottom: 2px solid #ccc;
-            font-weight: bold;
-            align-items: center;
-        }
-        .amc-labels div {
-            flex: 1;
-            text-align: center;
-            vertical-align: middle;
-            padding: 0 4px;
-            position: relative;
-        }
-        .amc-labels .sortable {
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            white-space: nowrap;
-        }
-        .amc-labels .sortable .sort-arrow {
-            font-size: 22px;
-            font-weight: bold;
-            color: #007bff;
-            line-height: 1;
-            display: inline-block;
-            vertical-align: middle;
-            transition: color 0.2s, opacity 0.2s;
-        }
-        .amc-labels .sortable .sort-arrow.active {
-            display: inline-block;
-        }
-        .amc-customerContainer {
-            width: 100%;
-        }
-        .amc-customerBox {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #ddd;
-            background-color: white;
-            min-height: 90px;
-        }
-        .amc-customerBox div {
-            flex: 1;
-            text-align: center;
-            vertical-align: middle;
-            padding: 0 4px;
-        }
-        .amc-customerBox .amc-id {
-            flex: 0.5;
-            min-width: 50px;
-        }
-        .amc-customerBox .amc-image {
-            flex: 0.7;
-            min-width: 60px;
-        }
-        .amc-customerBox .amc-email {
-            flex: 2;
-            min-width: 150px;
-            word-break: break-word;
-            white-space: normal;
-        }
-        .amc-customerBox img {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .amc-action {
-            flex: 1;
-            min-width: 90px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-        .amc-viewButton, .amc-toggleButton {
-            padding: 4px 8px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 14px;
-            width: 90px;
-            min-width: 90px;
-            max-width: 90px;
-            text-align: center;
-        }
-        .amc-viewButton {
-            background: #0066cc;
-            color: white;
-        }
-        .amc-toggleButton {
-            background: #dc3545;
-            color: white;
-        }
-        .amc-toggleButton[form] {
-            background: #28a745;
-        }
-        /* Unified confirmation modal style (match staff page) */
-        .amc-modal { display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 1000; }
-        .amc-modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #fff; padding: 28px 32px; border-radius: 10px; width: 700px; height: 450px; text-align: left; box-shadow: 0 12px 32px rgba(0,0,0,0.25); display: flex; flex-direction: column; justify-content: center; }
-        .amc-confirm-modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #fff; padding: 28px 32px; border-radius: 10px; width: 520px; max-width: 92vw; text-align: center; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
-        .amc-confirm-modal-content p { font-size: 20px; line-height: 1.5; color: #333333; margin: 0 0 18px 0; }
-        .amc-modal button, .amc-confirm-modal-content button { padding: 12px 26px; margin: 6px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 600; min-width: 110px; }
-        .amc-modal .amc-confirmYes, .amc-confirm-modal-content .amc-confirmYes { background-color: #28a745; color: #ffffff; }
-        .amc-modal .amc-confirmNo, .amc-confirm-modal-content .amc-confirmNo { background-color: #dc3545; color: #ffffff; }
-        .amcheader {
-            font-size: 24px;
-            color: #333;
-            margin: 10px 0px 10px 0px;
-        }
-        .amcsubtitle {
-            font-size: 16px;
-            color: #666;
-            margin: 10px 0px 10px 0px;
-        }
-        .amc-fname, .amc-lname {
-            flex: 1.2;
-            min-width: 80px;
-        }
-        .amc-id { min-width: 50px; max-width: 60px; flex: 0 0 55px; }
-        .amc-image { min-width: 60px; max-width: 70px; flex: 0 0 65px; }
-        .amc-fname { min-width: 80px; max-width: 100px; flex: 0 0 90px; }
-        .amc-lname { min-width: 80px; max-width: 100px; flex: 0 0 90px; }
-        .amc-email { min-width: 150px; max-width: 200px; flex: 2 1 180px; }
-        .amc-action { min-width: 90px; max-width: 100px; flex: 0 0 95px; }
-        .amc-action button.amc-viewButton,
-        .amc-action button.amc-toggleButton {
-            min-width: 90px;
-            max-width: 90px;
-            height: 30px;
-            font-size: 14px;
-            padding: 0 8px;
-            margin: 0 2px;
-            border-radius: 5px;
-        }
+        .amc-container { margin-top: 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .amc-mainContainer { max-height: calc(78vh - 60px - 80px); overflow-y: auto; padding-bottom: 10px; background-color: lightgrey; border: 1px solid #ccc; border-color: #000000; border-radius: 5px; height: 430px; position: relative; box-sizing: border-box; }
+        .amc-success-message { text-align: center; color: #28a745; font-weight: bold; margin: 10px 0; position: absolute; top: -40px; left: 0; width: 100%; }
+        .amc-custom-search { display: inline-block; position: relative; }
+        .amc-searchInput { padding: 12px; border: 1px solid #ccc; border-radius: 5px; width: 180px; box-sizing: border-box; }
+        .amc-filterSelect { padding: 12px; border: 1px solid #ccc; border-radius: 5px; width: 180px; box-sizing: border-box; margin-left: 10px; }
+        .amc-labels { display: flex; justify-content: space-between; padding: 8px 0; background-color: #f4f4f4; border-bottom: 2px solid #ccc; font-weight: bold; align-items: center; }
+        .amc-labels div { flex: 1; text-align: center; vertical-align: middle; padding: 0 4px; position: relative; }
+        .amc-customerBox { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; background-color: white; min-height: 90px; }
+        .amc-customerBox img { width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee; border-radius: 5px; }
+        .amc-viewButton { background: #0066cc; color: white; }
+        .amc-toggleButton { color: white; }
         .amc-action button.amc-viewButton { background: #0066cc; color: white; }
-        .amc-action button.amc-toggleButton { color: white; }
-        .amc-action button.amc-toggleButton[style*='#dc3545'] { background: #dc3545; }
-        .amc-action button.amc-toggleButton[style*='#28a745'] { background: #28a745; }
-        .amc-no-results-msg {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            color: #666;
-            font-size: 18px;
-            width: auto;
-            background: none;
-            border: none;
-            box-shadow: none;
-            padding: 0;
-            margin: 0;
-            text-align: center;
-        }
-        .amc-success-message {
-            position: absolute;
-            top: -40px;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            color: #28a745;
-            font-weight: bold;
-            margin: 0;
-            z-index: 10;
-        }
-        .amc-mainContainer { position: relative; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #aaa #f4f4f4; }
-        .amc-mainContainer::-webkit-scrollbar { width: 8px; background: #f4f4f4; }
-        .amc-mainContainer::-webkit-scrollbar-thumb { background: #aaa; border-radius: 4px; }
-        #amc-status-message {
-            position: static;
-            top: unset;
-            left: unset;
-            transform: none;
-            z-index: unset;
-            min-width: unset;
-            max-width: unset;
-            box-shadow: none;
-            background: #f8f9fa;
-            border: 1px solid #d4edda;
-            border-radius: 5px;
-            padding: 10px;
-            display: none;
-            text-align: left;
-            color: #28a745;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-        body, html {
-            overflow-x: hidden !important;
-        }
-        .amc-mainContainer {
-            overflow-y: auto;
-            overflow-x: hidden;
-            max-width: 100vw;
-        }
     </style>
 
     <body>
+    <script>const PROJECT_BASE = '<?php echo addslashes($PROJECT_BASE_WEB); ?>';</script>
     <div class="amc-title" style="position: relative;">
         <h1 class="amcheader" style="margin-right: 240px;">Customer Management</h1>
         <div id="amc-toast-anchor" style="position: absolute; top: 0; right: 0;"></div>
@@ -454,9 +244,13 @@ if (!$is_ajax) {
                 <div class="amc-customerBox" style="text-align: center; color: #666;">No customers found.</div>
             <?php else: ?>
                 <?php foreach ($customer_list as $customer): ?>
+                    <?php
+                        $imgFromDb = !empty($customer['Profile_Image']) ? $customer['Profile_Image'] : '';
+                        $normalizedImg = $imgFromDb !== '' ? normalizeCustomerImageUrl($imgFromDb, $PROJECT_BASE_WEB) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
+                    ?>
                     <div class="amc-customerBox" data-name="<?php echo htmlspecialchars(strtolower($customer['Cust_First_Name'] . ' ' . $customer['Cust_Last_Name'])); ?>" data-email="<?php echo htmlspecialchars(strtolower($customer['Cust_Email'])); ?>">
                         <div class="amc-id"><?php echo htmlspecialchars($customer['Customer_ID']); ?></div>
-                        <div class="amc-image"><img src="<?php echo (!empty($state_data[$customer['Cust_ID']]) ? htmlspecialchars($state_data[$customer['Cust_ID']]) : (!empty($customer['Profile_Image']) ? htmlspecialchars($customer['Profile_Image']) : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png')); ?>" alt="Profile"></div>
+                        <div class="amc-image"><img src="<?php echo htmlspecialchars($normalizedImg); ?>" alt="Profile"></div>
                         <div class="amc-fname"><?php echo htmlspecialchars($customer['Cust_First_Name']); ?></div>
                         <div class="amc-lname"><?php echo htmlspecialchars($customer['Cust_Last_Name']); ?></div>
                         <div class="amc-email"><?php echo htmlspecialchars($customer['Cust_Email']); ?></div>
@@ -709,7 +503,18 @@ if (!$is_ajax) {
         document.getElementById('confirmNoBtn').addEventListener('click', closeModal);
 
         function openViewPopup(customer) {
-            const profileImg = customer.Profile_Image || 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
+            let profileImg = (customer.Profile_Image && customer.Profile_Image.trim() !== '') ? customer.Profile_Image : 'https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png';
+            if (!/^https?:\/\//i.test(profileImg)) {
+                if (profileImg.charAt(0) !== '/') {
+                    if (profileImg.toLowerCase().indexOf('customer/') === 0) {
+                        profileImg = PROJECT_BASE.replace(/\/$/, '') + '/' + profileImg;
+                    } else if (profileImg.toLowerCase().indexOf('customer_uploads/') === 0) {
+                        profileImg = PROJECT_BASE.replace(/\/$/, '') + '/Customer/' + profileImg;
+                    } else {
+                        profileImg = PROJECT_BASE.replace(/\/$/, '') + '/Customer/' + profileImg.replace(/^\/+/, '');
+                    }
+                }
+            }
             const custId = customer.Customer_ID || '';
             const fname = customer.Cust_First_Name || '';
             const lname = customer.Cust_Last_Name || '';

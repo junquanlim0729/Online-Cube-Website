@@ -220,22 +220,23 @@ if (!$is_ajax) {
             box-sizing: border-box;
             background-color: white;
             position: relative;
+            border: none !important; outline: none !important; box-shadow: none !important; /* Only page body reset */
         }
-                 .ams-adminGrid {
-             display: grid;
-             grid-template-columns: repeat(4, 1fr);
-             gap: 20px;
-             padding: 20px;
-             background-color: transparent;
-             min-height: 300px;
-             align-items: start;
-             justify-items: start;
-             grid-auto-flow: row;
-             grid-auto-columns: 1fr;
-             box-sizing: border-box;
-             width: 100%;
-             position: relative;
-         }
+        .ams-adminGrid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding: 20px;
+            background-color: transparent;
+            min-height: 300px;
+            align-items: start;
+            justify-items: start;
+            grid-auto-flow: row;
+            grid-auto-columns: 1fr;
+            box-sizing: border-box;
+            width: 100%;
+            position: relative;
+        }
         .ams-container {
             margin-top: 20px;
             margin-bottom: 20px;
@@ -247,7 +248,7 @@ if (!$is_ajax) {
             max-height: calc(78vh - 60px - 80px);
             overflow-y: auto;
             padding-bottom: 10px;
-            background-color: lightgrey;
+            background-color: lightgrey; /* restore original container styles */
             border: 1px solid #ccc;
             border-color: #000000;
             border-radius: 5px;
@@ -255,205 +256,35 @@ if (!$is_ajax) {
             position: relative;
             box-sizing: border-box;
         }
-        .ams-success-message {
-            text-align: center;
-            color: #28a745;
-            font-weight: bold;
-            margin: 10px 0;
-            position: absolute;
-            top: -40px;
-            left: 0;
-            width: 100%;
-        }
-         .ams-custom-search {
-             display: inline-block;
-             position: relative;
-         }
-         .ams-searchInput {
-             padding: 12px;
-             border: 1px solid #ccc;
-             border-radius: 5px;
-             width: 180px;
-             box-sizing: border-box;
-         }
-        .ams-filterSelect {
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 180px;
-            box-sizing: border-box;
-            margin-left: 10px;
-        }
-        .ams-addStaffLink {
-            padding: 12px 30px;
-            background: #0066cc;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-left: auto;
-            border: 2px solid #004d99;
-        }
-                 .ams-adminBox {
-             border: 1px solid #ccc;
-             border-color: #005b6fff;
-             border-radius: 5px;
-             padding: 15px;
-             text-align: center;
-             line-height: 25px;
-             min-height: 300px;
-             box-sizing: border-box;
-             display: flex;
-             flex-direction: column;
-             justify-content: space-between;
-             background-color: white;
-             width: 100%;
-             max-width: 100%;
-             position: relative;
-         }
-        .ams-adminBox div:first-child div {
-            width: 150px;
-            height: 150px;
-            margin: 0 auto 20px;
-            border: 2px solid #ccc;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-        .ams-adminBox div:first-child div img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .ams-adminBox div:first-child span.label {
-            font-weight: bold;
-            color: #333;
-            text-align: left;
-            display: inline-block;
-            width: 70px;
-            margin-bottom: 5px;
-        }
-        .ams-adminBox div:first-child span.value {
-            color: #555;
-            text-align: right;
-            display: inline-block;
-            width: calc(100% - 80px);
-            margin-bottom: 5px;
-        }
-        .ams-adminBox div:first-child span.value.role {
-            text-align: right;
-        }
-        .ams-roleBox-admin {
-            background-color: #5490ffff;
-            padding: 2px 8px;
-            border: 1px solid #ccc;
-            border-color: #005b6fff;
-            border-radius: 3px;
-            display: inline-block;
-        }
-        .ams-roleBox-superAdmin {
-            background-color: #ffd700;
-            padding: 2px 8px;
-            border: 1px solid #ccc;
-            border-color: #005b6fff;
-            border-radius: 3px;
-            display: inline-block;
-        }
-        .ams-roleBox-admin span, .ams-roleBox-superAdmin span {
-            color: black;
-            font-weight: bold;
-        }
-        .ams-adminBox div:last-child {
-            margin-top: auto;
-        }
-        .ams-adminBox div:last-child form {
-            display: inline;
-        }
-        .ams-toggleButton {
-            padding: 12px 30px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-        }
-        .ams-toggleButton[form] {
-            background: #28a745;
-        }
-        p[style*="grid-column"] {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: #666;
-        }
-        h1.amsheader {
-            font-size: 24px;
-            color: #333;
-            margin: 10px 0px 10px 0px;
-        }
-        h2.amssubtitle {
-            font-size: 16px;
-            color: #666;
-            margin: 10px 0px 10px 0px;
-        }
-        /* Unified confirmation modal style */
-        .ams-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-        .ams-modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #ffffff;
-            padding: 28px 32px;
-            border-radius: 10px;
-            width: 520px;
-            max-width: 92vw;
-            text-align: center;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-        }
-        .ams-modal-content p {
-            font-size: 20px;
-            line-height: 1.5;
-            color: #333333;
-            margin: 0 0 18px 0;
-        }
-        .ams-modal button {
-            padding: 12px 26px;
-            margin: 6px 10px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: 600;
-            min-width: 110px;
-        }
+        .ams-success-message { text-align: center; color: #28a745; font-weight: bold; margin: 10px 0; position: absolute; top: -40px; left: 0; width: 100%; }
+        .ams-custom-search { display: inline-block; position: relative; }
+        .ams-searchInput { padding: 12px; border: 1px solid #ccc; border-radius: 5px; width: 180px; box-sizing: border-box; }
+        .ams-filterSelect { padding: 12px; border: 1px solid #ccc; border-radius: 5px; width: 180px; box-sizing: border-box; margin-left: 10px; }
+        .ams-addStaffLink { padding: 12px 30px; background: #0066cc; color: white; text-decoration: none; border-radius: 5px; margin-left: auto; border: 2px solid #004d99; }
+        .ams-adminBox { border: 1px solid #e5e5e5; border-radius: 5px; padding: 15px; text-align: center; line-height: 25px; min-height: 300px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background-color: white; width: 100%; max-width: 100%; position: relative; }
+        .ams-adminBox div:first-child div { width: 150px; height: 150px; margin: 0 auto 20px; border: 2px solid #eee; border-radius: 5px; overflow: hidden; }
+        .ams-adminBox div:first-child div img { width: 100%; height: 100%; object-fit: cover; }
+        .ams-adminBox div:first-child span.label { font-weight: bold; color: #333; text-align: left; display: inline-block; width: 70px; margin-bottom: 5px; }
+        .ams-adminBox div:first-child span.value { color: #555; text-align: right; display: inline-block; width: calc(100% - 80px); margin-bottom: 5px; }
+        .ams-adminBox div:first-child span.value.role { text-align: right; }
+        .ams-roleBox-admin { background-color: #5490ffff; padding: 2px 8px; border: 1px solid #ccc; border-color: #005b6fff; border-radius: 3px; display: inline-block; }
+        .ams-roleBox-superAdmin { background-color: #ffd700; padding: 2px 8px; border: 1px solid #ccc; border-color: #005b6fff; border-radius: 3px; display: inline-block; }
+        .ams-roleBox-admin span, .ams-roleBox-superAdmin span { color: black; font-weight: bold; }
+        .ams-adminBox div:last-child { margin-top: auto; }
+        .ams-adminBox div:last-child form { display: inline; }
+        .ams-toggleButton { padding: 12px 30px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; }
+        .ams-toggleButton[form] { background: #28a745; }
+        p[style*="grid-column"] { grid-column: 1 / -1; text-align: center; color: #666; }
+        h1.amsheader { font-size: 24px; color: #333; margin: 10px 0px 10px 0px; }
+        h2.amssubtitle { font-size: 16px; color: #666; margin: 10px 0px 10px 0px; }
+        .ams-modal { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; }
+        .ams-modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #ffffff; padding: 28px 32px; border-radius: 10px; width: 520px; max-width: 92vw; text-align: center; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25); }
+        .ams-modal-content p { font-size: 20px; line-height: 1.5; color: #333333; margin: 0 0 18px 0; }
+        .ams-modal button { padding: 12px 26px; margin: 6px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 600; min-width: 110px; }
         .ams-modal .ams-confirmYes { background-color: #28a745; color: #ffffff; }
         .ams-modal .ams-confirmNo  { background-color: #dc3545; color: #ffffff; }
-        .ams-popup {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1001;
-        }
-        .ams-popup-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            width: 500px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
+        .ams-popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1001; }
+        .ams-popup-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 5px; width: 500px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); }
     </style>
 
     <body>
@@ -476,16 +307,14 @@ if (!$is_ajax) {
         <a href="#" class="ams-addStaffLink" onclick="openPopup(); return false;" title="Add new staff member">Add Staff</a>
     </div>
 
-         <div id="ams-status-message" style="display: none; text-align: left; color: #28a745; font-weight: bold; margin: 10px 0; padding: 10px; border-radius: 5px; background-color: #f8f9fa; border: 1px solid #d4edda;">
-         <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Success" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
-         <span id="ams-status-text"></span>
-     </div>
-     
-     <div class="ams-mainContainer">
-         <?php if (isset($success_message)): ?>
-             <div class="ams-success-message"><a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a><?php echo $success_message; ?></div>
-         <?php endif; ?>
-         
+    <div id="ams-status-message" style="display: none; text-align: left; color: #28a745; font-weight: bold; margin: 10px 0; padding: 10px; border-radius: 5px; background-color: #f8f9fa; border: 1px solid #d4edda;">
+        <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" alt="Success" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
+        <span id="ams-status-text"></span>
+    </div>
+    <div class="ams-mainContainer">
+        <?php if (isset($success_message)): ?>
+            <div class="ams-success-message"><a href="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" style="margin-right: 10px;"><img src="https://i.pinimg.com/564x/e3/0d/b7/e30db7466f1c3f7eaa110351e400bb79.jpg" alt="Success Icon" style="width: 20px; height: 20px;"></a><?php echo $success_message; ?></div>
+        <?php endif; ?>
         <div class="ams-adminGrid">
             <?php if (empty($staff_list)): ?>
                 <p>No Admins or Super Admins found.</p>
@@ -560,7 +389,7 @@ if (!$is_ajax) {
                     <label for="staff_password" style="flex: 1; font-weight: bold; color: #333; margin-right: 10px;">Password</label>
                     <input type="text" id="staff_password" name="staff_password" value="@Bcd1234" disabled style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 3px;" placeholder="Default password">
                 </div>
-                                 <button type="submit" name="submit_add" value="Add Staff" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Submit to add new staff">Add Staff</button>
+                <button type="submit" name="submit_add" value="Add Staff" style="padding: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" title="Submit to add new staff">Add Staff</button>
             </form>
             <div style="text-align: center; margin-top: 15px;">
                 <button type="button" onclick="closePopup()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Cancel</button>

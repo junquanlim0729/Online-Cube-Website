@@ -10,6 +10,7 @@
       $headerBg = $isSuperAdmin ? '#6c757d' : '#007bff';
     ?>
     <style>
+        html, body { margin: 0 !important; padding: 0 !important; border: none !important; outline: none !important; box-shadow: none !important; }
         header {
             background-color: <?php echo $headerBg; ?>;
             color: white;
